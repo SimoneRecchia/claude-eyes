@@ -50,7 +50,10 @@ def _capture_loop(
     started_monotonic: float,
 ) -> None:
     interval = 1.0 / fps
-    next_tick = started_monotonic
+    # First frame fires one interval after start, so fps=N produces N frames/s
+    # (not N+1 in the first second) and a fresh query right after start sees
+    # an empty buffer rather than racing with the capture thread.
+    next_tick = started_monotonic + interval
     index = 0
     with mss.mss() as sct:
         monitor = sct.monitors[monitor_index]
