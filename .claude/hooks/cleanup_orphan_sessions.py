@@ -19,7 +19,11 @@ from pathlib import Path
 
 def main() -> None:
     project_dir = Path(os.environ.get("CLAUDE_PROJECT_DIR", "."))
-    sessions_dir = project_dir / "sessions"
+    # Honour user override; default matches ServerConfig.sessions_dir default.
+    sessions_dir_env = os.environ.get("CLAUDE_EYES_SESSIONS_DIR", "sessions")
+    sessions_dir = Path(sessions_dir_env)
+    if not sessions_dir.is_absolute():
+        sessions_dir = project_dir / sessions_dir
 
     if not sessions_dir.is_dir():
         return
