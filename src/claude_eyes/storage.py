@@ -86,3 +86,28 @@ def prune_by_age(session_dir: Path, max_age_ms: int, now_ms: int) -> int:
             except OSError:
                 pass
     return removed
+
+
+def prune_by_size(session_dir: Path, max_bytes: int) -> int:
+    """If the total size of ``frame_*.jpg`` exceeds ``max_bytes``, delete oldest-first
+    until under the cap. Returns the number of frames removed.
+
+    Oldest-first is decided lexicographically by filename, which works because the
+    index is zero-padded to 5 digits (see :func:`frame_filename`).
+    """
+    if not session_dir.is_dir():
+        return 0
+    frames = sorted(session_dir.glob("frame_*.jpg"), key=lambda p: p.name)
+    sizes = [(p, p.stat().st_size) for p in frames if p.is_file()]
+    total = sum(size for _, size in sizes)
+    removed = 0
+    for p, size in sizes:
+        if total <= max_bytes:
+            break
+        try:
+            p.unlink()
+            total -= size
+            removed += 1
+        except OSError:
+            pass
+    return removed
