@@ -21,7 +21,11 @@ See [CLAUDE.md](CLAUDE.md) for how Claude uses the system.
 
 ## Status
 
-Foundation scaffolding. Python implementation follows in the next plan.
+Foundation shipped: the Python MCP server, `frame-analyzer` subagent, `analyze-screen` skill, and hooks are all in place. 35 tests pass; real-screen smoke verified. `include_cursor` config is accepted but cursor capture itself will be implemented in a follow-up spec (a warning is logged on startup if set to `true`).
+
+Planned next specs:
+- **Continuous mode** — rolling buffer + frame optimization + "what did I do" skill.
+- **Chrome extension** — DOM selector → bbox translation, animation triggers.
 
 ## Requirements
 

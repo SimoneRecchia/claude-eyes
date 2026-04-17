@@ -1,6 +1,7 @@
 """claudeEyes MCP server — stdio transport via FastMCP."""
 from __future__ import annotations
 
+import sys
 import time
 from pathlib import Path
 from typing import Any
@@ -16,6 +17,13 @@ from .storage import list_frames as list_frames_on_disk
 _config: ServerConfig = ServerConfig.from_env()
 _registry: SessionRegistry = SessionRegistry(_config.sessions_dir)
 _active: dict[str, RecorderHandle] = {}
+
+if _config.include_cursor:
+    print(
+        "[claude-eyes] CLAUDE_EYES_INCLUDE_CURSOR is set but cursor capture "
+        "is not yet implemented; the flag is currently a no-op.",
+        file=sys.stderr,
+    )
 
 mcp = FastMCP("claude_eyes")
 

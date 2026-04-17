@@ -6,7 +6,8 @@
       "args": ["-m", "claude_eyes.server"],
       "env": {
         "CLAUDE_EYES_MONITOR": "${CLAUDE_EYES_MONITOR:-0}",
-        "CLAUDE_EYES_INCLUDE_CURSOR": "${CLAUDE_EYES_INCLUDE_CURSOR:-false}"
+        "CLAUDE_EYES_INCLUDE_CURSOR": "${CLAUDE_EYES_INCLUDE_CURSOR:-false}",
+        "CLAUDE_EYES_SESSIONS_DIR": "${CLAUDE_EYES_SESSIONS_DIR:-sessions}"
       }
     }
   }
