@@ -185,3 +185,42 @@ def test_stop_continuous_buffer_rejects_when_idle(patched_server) -> None:
     result = patched_server.stop_continuous_buffer()
     assert "error" in result
     assert "no active" in result["error"]
+
+
+def test_query_buffer_returns_sampled_frames(patched_server) -> None:
+    patched_server.start_continuous_buffer(fps=20)
+    time.sleep(0.6)
+    result = patched_server.query_buffer(time_range_s=10, max_frames=5)
+
+    assert "frames" in result
+    assert 1 <= len(result["frames"]) <= 5
+    assert result["total_in_range"] >= len(result["frames"])
+    assert all(set(f.keys()) >= {"path", "index", "timestamp_ms", "age_s"} for f in result["frames"])
+
+    patched_server.stop_continuous_buffer()
+
+
+def test_query_buffer_idle_returns_error(patched_server) -> None:
+    result = patched_server.query_buffer(time_range_s=60)
+    assert "error" in result
+
+
+def test_query_buffer_empty_buffer_returns_empty_frames(patched_server) -> None:
+    patched_server.start_continuous_buffer(fps=1)
+    result = patched_server.query_buffer(time_range_s=10, max_frames=5)
+
+    assert result["frames"] == []
+    assert result["total_in_range"] == 0
+
+    patched_server.stop_continuous_buffer()
+
+
+def test_query_buffer_clamps_time_range_beyond_retention(patched_server) -> None:
+    patched_server.start_continuous_buffer(fps=10, retention_s=10)
+    time.sleep(0.4)
+    result = patched_server.query_buffer(time_range_s=9999, max_frames=5)
+
+    assert "warning" in result
+    assert "clamped" in result["warning"]
+
+    patched_server.stop_continuous_buffer()
