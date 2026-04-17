@@ -46,12 +46,16 @@ def start_recording(
     fps: int = DEFAULT_FPS,
     resolution_scale: float = DEFAULT_RESOLUTION_SCALE,
     region: tuple[int, int, int, int] | None = None,
+    region_dpr: float = 1.0,
     session_name: str | None = None,
 ) -> dict[str, Any]:
     """Begin a new screen recording session.
 
     Returns a ``session_id`` used for every subsequent call. The session
-    folder is created under the configured ``sessions_dir``.
+    folder is created under the configured ``sessions_dir``. If ``region`` is
+    given, ``region_dpr`` multiplies its coordinates before capture — use it
+    when the region was computed in CSS pixels (e.g., from a browser) but the
+    screen is captured in physical pixels (high-DPI / OS scaling).
     """
     session = RecordingSession.create(
         name=session_name or "",
@@ -68,6 +72,7 @@ def start_recording(
         resolution_scale=resolution_scale,
         region=session.region,
         monitor_index=_config.monitor,
+        region_dpr=region_dpr,
     )
     _active[session.session_id] = handle
     _registry.add(session)
@@ -78,6 +83,7 @@ def start_recording(
             "fps": fps,
             "resolution_scale": resolution_scale,
             "region": list(session.region) if session.region else None,
+            "region_dpr": region_dpr,
             "monitor": _config.monitor,
             "include_cursor": _config.include_cursor,
         },

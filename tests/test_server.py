@@ -258,3 +258,26 @@ def test_continuous_and_on_demand_coexist(patched_server, tmp_path: Path) -> Non
     assert cont_stop["stopped"] is True
 
     patched_server.cleanup_session(sid)
+
+
+def test_start_recording_forwards_region_dpr(patched_server, tmp_path: Path) -> None:
+    """Region passed to the tool is scaled by region_dpr before hitting mss."""
+    from tests.test_recorder import _FakeMSS
+
+    _FakeMSS.instances.clear()
+    result = patched_server.start_recording(
+        fps=10,
+        resolution_scale=1.0,
+        region=(10, 20, 30, 40),
+        region_dpr=2.0,
+        session_name="dpr_smoke",
+    )
+    sid = result["session_id"]
+    time.sleep(0.3)
+    patched_server.stop_recording(sid)
+
+    grabbed = _FakeMSS.instances[-1].grabbed
+    assert grabbed, "expected at least one grab"
+    assert grabbed[0] == {"left": 20, "top": 40, "width": 60, "height": 80}
+
+    patched_server.cleanup_session(sid)
