@@ -105,6 +105,25 @@ Defaults are chosen to be cheap on disk (~200 MB for 5 min at 2 fps / scale 0.75
 - Tool errors are structured (`{"error": "..."}`) — never raise. Handle them by telling the user what to do next.
 - `query_buffer` may return a `warning` field when the requested range exceeds actual buffer age; relay that honestly.
 
+## Using claudeEyes with Claude-in-Chrome
+
+When you are working on a Chrome page via the `mcp__Claude_in_Chrome__*` tools and the user asks about visual behaviour that unfolds over time (animations, transitions, reveal-on-scroll, hover effects, media playback), use the **`analyze-page-animation` skill**. It coordinates Claude-in-Chrome (DOM, input, navigation) with claudeEyes (video capture) and guarantees timing-perfect start/stop around the triggering action.
+
+### Hard rules
+
+- **Never use Claude-in-Chrome's `computer` screenshot tool for time-based behaviour.** It captures a single frame. claudeEyes captures a real video.
+- **Convert CSS pixels to physical pixels** before calling `start_recording`. Chrome's `getBoundingClientRect()` returns CSS pixels; on a 150% / Retina display the physical region is different. Either do the math in JS (recommended, see the skill's Step 0) or pass `region_dpr=window.devicePixelRatio` to `start_recording`.
+- **Scroll the target into view before starting the recorder.** Off-screen regions grab empty/irrelevant pixels.
+- **Keep using `review-recent-activity` for rolling-buffer queries**, even on Chrome pages — the continuous buffer is not tab-scoped.
+
+### Which skill does what
+
+| Skill | Context | Trigger |
+|---|---|---|
+| `analyze-screen` | Desktop / OS UI / any app | User asks to see a time-based behaviour outside a browser. |
+| `analyze-page-animation` | Chrome page via Claude-in-Chrome | User asks about a specific animation/interaction on a page. |
+| `review-recent-activity` | Anywhere, user started the rolling buffer | "Cosa ho fatto", "cosa è successo negli ultimi minuti". |
+
 ## Related files
 
 - Subagent: `.claude/agents/frame-analyzer.md` — vision analysis instructions.
