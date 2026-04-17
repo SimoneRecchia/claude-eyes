@@ -8,6 +8,7 @@ from PIL import Image
 from claude_eyes.storage import (
     cleanup_session_dir,
     frame_filename,
+    frames_in_time_range,
     list_frames,
     prune_by_age,
     prune_by_size,
@@ -137,3 +138,30 @@ def test_prune_by_size_under_cap_is_noop(tmp_path: Path) -> None:
 
 def test_prune_by_size_missing_dir(tmp_path: Path) -> None:
     assert prune_by_size(tmp_path / "nope", max_bytes=1000) == 0
+
+
+def test_frames_in_time_range_filters_and_sorts(tmp_path: Path) -> None:
+    sess = tmp_path / "p_range"
+    _touch_frame(sess, 0, 100)
+    _touch_frame(sess, 1, 500)
+    _touch_frame(sess, 2, 900)
+    _touch_frame(sess, 3, 1300)
+
+    result = frames_in_time_range(sess, oldest_ts_ms=400, newest_ts_ms=1000)
+
+    assert [f["timestamp_ms"] for f in result] == [500, 900]
+    assert [f["index"] for f in result] == [1, 2]
+
+
+def test_frames_in_time_range_inclusive_bounds(tmp_path: Path) -> None:
+    sess = tmp_path / "p_range_inc"
+    _touch_frame(sess, 0, 1000)
+    _touch_frame(sess, 1, 2000)
+
+    result = frames_in_time_range(sess, oldest_ts_ms=1000, newest_ts_ms=2000)
+
+    assert len(result) == 2
+
+
+def test_frames_in_time_range_missing_dir(tmp_path: Path) -> None:
+    assert frames_in_time_range(tmp_path / "nope", 0, 10_000) == []
