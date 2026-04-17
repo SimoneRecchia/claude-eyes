@@ -16,13 +16,16 @@ def patched_server(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
     monkeypatch.setenv("CLAUDE_EYES_MONITOR", "0")
     monkeypatch.setenv("CLAUDE_EYES_INCLUDE_CURSOR", "false")
 
-    # Fresh import each test
     import importlib
 
+    import claude_eyes.continuous as cont_mod
     import claude_eyes.recorder as rec_mod
+
     monkeypatch.setattr(rec_mod.mss, "mss", _FakeMSS)
+    monkeypatch.setattr(cont_mod.mss, "mss", _FakeMSS)
 
     import claude_eyes.server as server
+
     importlib.reload(server)
     return server
 
@@ -131,3 +134,37 @@ def test_full_flow_start_list_stop_cleanup(patched_server, tmp_path: Path) -> No
     cleanup = patched_server.cleanup_session(sid)
     assert cleanup["deleted"] is True
     assert patched_server._registry.get(sid) is None
+
+
+def _manual_stop_continuous(patched_server) -> None:
+    """Teardown helper for Task 7 tests before ``stop_continuous_buffer`` exists."""
+    from claude_eyes.continuous import stop_continuous
+
+    if patched_server._continuous_handle is not None:
+        stop_continuous(patched_server._continuous_handle)
+        patched_server._continuous_handle = None
+
+
+def test_start_continuous_buffer_activates_and_echoes_config(patched_server, tmp_path: Path) -> None:
+    result = patched_server.start_continuous_buffer(fps=5, retention_s=60, resolution_scale=0.5)
+
+    assert result["active"] is True
+    assert result["config"]["fps"] == 5
+    assert result["config"]["retention_s"] == 60
+    assert result["config"]["resolution_scale"] == 0.5
+    assert result["config"]["monitor"] == 0
+    assert (tmp_path / "sessions" / "_continuous").exists()
+
+    _manual_stop_continuous(patched_server)
+
+
+def test_start_continuous_buffer_rejects_double_start(patched_server) -> None:
+    first = patched_server.start_continuous_buffer(fps=5)
+    second = patched_server.start_continuous_buffer(fps=5)
+
+    assert first["active"] is True
+    assert "error" in second
+    assert "already active" in second["error"]
+    assert second["started_at"] == first["started_at"]
+
+    _manual_stop_continuous(patched_server)

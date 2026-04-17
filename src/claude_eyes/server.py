@@ -2,21 +2,34 @@
 from __future__ import annotations
 
 import sys
+import threading
 import time
 from pathlib import Path
 from typing import Any
 
 from mcp.server.fastmcp import FastMCP
 
-from .config import DEFAULT_FPS, DEFAULT_RESOLUTION_SCALE, ServerConfig
+from .config import (
+    CONTINUOUS_SESSION_DIR_NAME,
+    DEFAULT_CONTINUOUS_FPS,
+    DEFAULT_CONTINUOUS_RESOLUTION_SCALE,
+    DEFAULT_CONTINUOUS_RETENTION_S,
+    DEFAULT_FPS,
+    DEFAULT_QUERY_MAX_FRAMES,
+    DEFAULT_RESOLUTION_SCALE,
+    ServerConfig,
+)
+from .continuous import ContinuousHandle, sample_frames, start_continuous, stop_continuous
 from .recorder import RecorderHandle, start_recorder, stop_recorder
 from .session import RecordingSession, SessionRegistry, utc_now_iso
-from .storage import cleanup_session_dir
+from .storage import cleanup_session_dir, frames_in_time_range
 from .storage import list_frames as list_frames_on_disk
 
 _config: ServerConfig = ServerConfig.from_env()
 _registry: SessionRegistry = SessionRegistry(_config.sessions_dir)
 _active: dict[str, RecorderHandle] = {}
+_continuous_handle: ContinuousHandle | None = None
+_continuous_lock: threading.Lock = threading.Lock()
 
 if _config.include_cursor:
     print(
@@ -125,6 +138,50 @@ def cleanup_session(session_id: str) -> dict[str, Any]:
     freed = cleanup_session_dir(Path(session.frames_dir))
     _registry.remove(session_id)
     return {"deleted": True, "freed_bytes": freed}
+
+
+@mcp.tool()
+def start_continuous_buffer(
+    fps: int = DEFAULT_CONTINUOUS_FPS,
+    retention_s: int = DEFAULT_CONTINUOUS_RETENTION_S,
+    resolution_scale: float = DEFAULT_CONTINUOUS_RESOLUTION_SCALE,
+) -> dict[str, Any]:
+    """Begin continuous rolling-buffer capture.
+
+    ONLY call this when the user has explicitly asked for the buffer to start.
+    Never start it on your own — the user must know their screen is being
+    recorded continuously. Stop with ``stop_continuous_buffer`` when the user
+    no longer needs it.
+    """
+    global _continuous_handle
+    with _continuous_lock:
+        if _continuous_handle is not None:
+            return {
+                "error": "continuous buffer already active",
+                "started_at": _continuous_handle.started_at_iso,
+            }
+        session_dir = _config.sessions_dir / CONTINUOUS_SESSION_DIR_NAME
+        disk_cap_bytes = _config.continuous_disk_cap_mb * 1024 * 1024
+        handle = start_continuous(
+            session_dir=session_dir,
+            fps=fps,
+            retention_s=retention_s,
+            resolution_scale=resolution_scale,
+            disk_cap_bytes=disk_cap_bytes,
+            monitor_index=_config.monitor,
+        )
+        _continuous_handle = handle
+        return {
+            "active": True,
+            "started_at": handle.started_at_iso,
+            "config": {
+                "fps": fps,
+                "retention_s": retention_s,
+                "resolution_scale": resolution_scale,
+                "disk_cap_mb": _config.continuous_disk_cap_mb,
+                "monitor": _config.monitor,
+            },
+        }
 
 
 def main() -> None:
