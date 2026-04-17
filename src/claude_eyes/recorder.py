@@ -46,9 +46,8 @@ def _capture_loop(
             now = time.monotonic()
             if now - started_monotonic > SAFETY_CAP_SECONDS:
                 break
-            if now < next_tick:
-                if stop_event.wait(timeout=next_tick - now):
-                    break
+            if now < next_tick and stop_event.wait(timeout=next_tick - now):
+                break
 
             ts_ms = int((time.monotonic() - started_monotonic) * 1000)
             raw = sct.grab(target)
@@ -58,7 +57,7 @@ def _capture_loop(
                     max(1, int(img.width * resolution_scale)),
                     max(1, int(img.height * resolution_scale)),
                 )
-                img = img.resize(new_size, Image.LANCZOS)
+                img = img.resize(new_size, Image.Resampling.LANCZOS)
 
             save_frame(session_dir, frames_counter[0], ts_ms, img)
             frames_counter[0] += 1

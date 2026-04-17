@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from claude_eyes.session import RecordingSession
+from claude_eyes.session import RecordingSession, SessionRegistry
 
 
 def test_create_session_generates_id_and_frames_dir(sessions_dir: Path) -> None:
@@ -50,11 +50,6 @@ def test_session_to_dict_roundtrips(sessions_dir: Path) -> None:
     d = s.to_dict()
     s2 = RecordingSession(**d)
     assert s == s2
-
-
-import pytest
-
-from claude_eyes.session import SessionRegistry
 
 
 def _make(sessions_dir: Path, name: str = "x") -> RecordingSession:

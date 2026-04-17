@@ -1,7 +1,6 @@
 """claudeEyes MCP server — stdio transport via FastMCP."""
 from __future__ import annotations
 
-import sys
 import time
 from pathlib import Path
 from typing import Any
@@ -11,8 +10,8 @@ from mcp.server.fastmcp import FastMCP
 from .config import DEFAULT_FPS, DEFAULT_RESOLUTION_SCALE, ServerConfig
 from .recorder import RecorderHandle, start_recorder, stop_recorder
 from .session import RecordingSession, SessionRegistry, utc_now_iso
-from .storage import cleanup_session_dir, list_frames as list_frames_on_disk
-
+from .storage import cleanup_session_dir
+from .storage import list_frames as list_frames_on_disk
 
 _config: ServerConfig = ServerConfig.from_env()
 _registry: SessionRegistry = SessionRegistry(_config.sessions_dir)

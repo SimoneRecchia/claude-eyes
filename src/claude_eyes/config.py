@@ -25,7 +25,7 @@ class ServerConfig:
     sessions_dir: Path = Path("sessions")
 
     @classmethod
-    def from_env(cls) -> "ServerConfig":
+    def from_env(cls) -> ServerConfig:
         return cls(
             monitor=int(os.environ.get("CLAUDE_EYES_MONITOR", "0")),
             include_cursor=_parse_bool(os.environ.get("CLAUDE_EYES_INCLUDE_CURSOR", "false")),

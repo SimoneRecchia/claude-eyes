@@ -49,7 +49,9 @@ def test_server_config_reads_env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ("true", True), ("True", True), ("TRUE", True),
     ("false", False), ("False", False), ("0", False), ("", False),
 ])
-def test_include_cursor_env_parsing(monkeypatch: pytest.MonkeyPatch, value: str, expected: bool) -> None:
+def test_include_cursor_env_parsing(
+    monkeypatch: pytest.MonkeyPatch, value: str, expected: bool
+) -> None:
     monkeypatch.setenv("CLAUDE_EYES_INCLUDE_CURSOR", value)
     cfg = ServerConfig.from_env()
     assert cfg.include_cursor is expected
