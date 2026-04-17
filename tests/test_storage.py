@@ -9,12 +9,18 @@ from claude_eyes.storage import (
     cleanup_session_dir,
     frame_filename,
     list_frames,
+    prune_by_age,
     save_frame,
 )
 
 
 def _img(color: tuple[int, int, int] = (255, 0, 0)) -> Image.Image:
     return Image.new("RGB", (10, 10), color)
+
+
+def _touch_frame(session_dir: Path, index: int, ts_ms: int) -> Path:
+    """Write a tiny JPEG with the right filename so it can be pruned by age."""
+    return save_frame(session_dir, index, ts_ms, _img())
 
 
 def test_frame_filename_format() -> None:
@@ -67,3 +73,35 @@ def test_cleanup_session_dir_removes_and_reports_bytes(tmp_path: Path) -> None:
 
 def test_cleanup_session_dir_missing_is_noop(tmp_path: Path) -> None:
     assert cleanup_session_dir(tmp_path / "never-existed") == 0
+
+
+def test_prune_by_age_removes_only_old_frames(tmp_path: Path) -> None:
+    sess = tmp_path / "p_age"
+    _touch_frame(sess, 0, 1000)    # age 4000 ms at now=5000
+    _touch_frame(sess, 1, 3000)    # age 2000 ms
+    _touch_frame(sess, 2, 4800)    # age  200 ms
+
+    removed = prune_by_age(sess, max_age_ms=2500, now_ms=5000)
+
+    assert removed == 1
+    remaining = sorted(p.name for p in sess.glob("frame_*.jpg"))
+    assert remaining == [
+        "frame_00001_0000003000.jpg",
+        "frame_00002_0000004800.jpg",
+    ]
+
+
+def test_prune_by_age_ignores_missing_dir(tmp_path: Path) -> None:
+    assert prune_by_age(tmp_path / "never", max_age_ms=1000, now_ms=2000) == 0
+
+
+def test_prune_by_age_tolerates_malformed_filenames(tmp_path: Path) -> None:
+    sess = tmp_path / "p_age_bad"
+    sess.mkdir()
+    (sess / "frame_bad_name.jpg").write_bytes(b"not a frame")
+    _touch_frame(sess, 0, 1000)
+
+    removed = prune_by_age(sess, max_age_ms=500, now_ms=5000)
+
+    assert removed == 1
+    assert (sess / "frame_bad_name.jpg").exists()
