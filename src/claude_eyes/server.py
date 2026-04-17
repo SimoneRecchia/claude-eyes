@@ -201,6 +201,54 @@ def stop_continuous_buffer() -> dict[str, Any]:
         }
 
 
+@mcp.tool()
+def query_buffer(
+    time_range_s: int,
+    max_frames: int = DEFAULT_QUERY_MAX_FRAMES,
+) -> dict[str, Any]:
+    """Return an evenly-sampled subset of continuous-buffer frames from the
+    last ``time_range_s`` seconds (capped at buffer retention)."""
+    global _continuous_handle
+    with _continuous_lock:
+        if _continuous_handle is None:
+            return {"error": "no active continuous buffer"}
+        handle = _continuous_handle
+        now_ms = int((time.monotonic() - handle.started_monotonic) * 1000)
+        requested_oldest = now_ms - (time_range_s * 1000)
+        buffer_oldest = max(0, now_ms - (handle.config.retention_s * 1000))
+        clamped = requested_oldest < buffer_oldest
+        oldest = buffer_oldest if clamped else requested_oldest
+
+        all_frames = frames_in_time_range(
+            handle.session_dir,
+            oldest_ts_ms=oldest,
+            newest_ts_ms=now_ms,
+        )
+        sampled = sample_frames(all_frames, max_frames)
+
+        enriched = [
+            {
+                "path": f["path"],
+                "index": f["index"],
+                "timestamp_ms": f["timestamp_ms"],
+                "age_s": round((now_ms - f["timestamp_ms"]) / 1000, 2),
+            }
+            for f in sampled
+        ]
+        result: dict[str, Any] = {
+            "frames": enriched,
+            "total_in_range": len(all_frames),
+            "oldest_frame_age_s": enriched[0]["age_s"] if enriched else 0.0,
+            "newest_frame_age_s": enriched[-1]["age_s"] if enriched else 0.0,
+        }
+        if clamped:
+            effective_s = max(0, (now_ms - buffer_oldest) // 1000)
+            result["warning"] = (
+                f"time_range_s exceeded buffer age; clamped to {effective_s}s"
+            )
+        return result
+
+
 def main() -> None:
     mcp.run()
 
