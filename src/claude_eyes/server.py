@@ -184,6 +184,23 @@ def start_continuous_buffer(
         }
 
 
+@mcp.tool()
+def stop_continuous_buffer() -> dict[str, Any]:
+    """Stop the continuous rolling buffer. Frames on disk are left in place
+    (the session-end hook will wipe them when Claude Code exits)."""
+    global _continuous_handle
+    with _continuous_lock:
+        if _continuous_handle is None:
+            return {"error": "no active continuous buffer"}
+        frames_kept, bytes_kept = stop_continuous(_continuous_handle)
+        _continuous_handle = None
+        return {
+            "stopped": True,
+            "frames_kept": frames_kept,
+            "bytes_kept": bytes_kept,
+        }
+
+
 def main() -> None:
     mcp.run()
 

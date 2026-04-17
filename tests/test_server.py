@@ -168,3 +168,20 @@ def test_start_continuous_buffer_rejects_double_start(patched_server) -> None:
     assert second["started_at"] == first["started_at"]
 
     _manual_stop_continuous(patched_server)
+
+
+def test_stop_continuous_buffer_returns_stats(patched_server) -> None:
+    patched_server.start_continuous_buffer(fps=10)
+    time.sleep(0.25)
+
+    result = patched_server.stop_continuous_buffer()
+
+    assert result["stopped"] is True
+    assert result["frames_kept"] >= 1
+    assert result["bytes_kept"] > 0
+
+
+def test_stop_continuous_buffer_rejects_when_idle(patched_server) -> None:
+    result = patched_server.stop_continuous_buffer()
+    assert "error" in result
+    assert "no active" in result["error"]
