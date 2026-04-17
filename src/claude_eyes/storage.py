@@ -59,3 +59,30 @@ def cleanup_session_dir(session_dir: Path) -> int:
     total = sum(f.stat().st_size for f in session_dir.rglob("*") if f.is_file())
     shutil.rmtree(session_dir)
     return total
+
+
+def prune_by_age(session_dir: Path, max_age_ms: int, now_ms: int) -> int:
+    """Remove frames whose encoded timestamp is older than ``now_ms - max_age_ms``.
+
+    Returns the number of frames removed. Missing directory is a no-op.
+    Malformed filenames are skipped (not counted, not deleted).
+    """
+    if not session_dir.is_dir():
+        return 0
+    cutoff_ms = now_ms - max_age_ms
+    removed = 0
+    for p in session_dir.glob("frame_*.jpg"):
+        parts = p.stem.split("_")
+        if len(parts) != 3:
+            continue
+        try:
+            ts = int(parts[2])
+        except ValueError:
+            continue
+        if ts < cutoff_ms:
+            try:
+                p.unlink()
+                removed += 1
+            except OSError:
+                pass
+    return removed
