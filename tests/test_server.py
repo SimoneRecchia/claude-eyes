@@ -224,3 +224,28 @@ def test_query_buffer_clamps_time_range_beyond_retention(patched_server) -> None
     assert "clamped" in result["warning"]
 
     patched_server.stop_continuous_buffer()
+
+
+def test_continuous_and_on_demand_coexist(patched_server, tmp_path: Path) -> None:
+    """Buffer + on-demand run side-by-side on different directories."""
+    cont = patched_server.start_continuous_buffer(fps=5)
+    assert cont["active"] is True
+
+    od = patched_server.start_recording(fps=10, resolution_scale=1.0, region=None, session_name="coexist")
+    sid = od["session_id"]
+    time.sleep(0.35)
+    od_stop = patched_server.stop_recording(sid)
+    assert od_stop["frames_count"] >= 1
+
+    continuous_dir = tmp_path / "sessions" / "_continuous"
+    on_demand_dir = tmp_path / "sessions" / sid
+    assert continuous_dir.exists()
+    assert on_demand_dir.exists()
+    assert continuous_dir != on_demand_dir
+
+    q = patched_server.query_buffer(time_range_s=30, max_frames=10)
+    assert "frames" in q
+    cont_stop = patched_server.stop_continuous_buffer()
+    assert cont_stop["stopped"] is True
+
+    patched_server.cleanup_session(sid)
