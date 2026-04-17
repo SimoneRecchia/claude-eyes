@@ -65,6 +65,37 @@ def start_recording(
 
 
 @mcp.tool()
+def stop_recording(session_id: str) -> dict[str, Any]:
+    """Stop an active recording and return frame metadata.
+
+    The session stays in the registry so ``list_frames`` / ``cleanup_session``
+    can still reach it. Call ``cleanup_session`` once the frame-analyzer
+    subagent has returned.
+    """
+    handle = _active.pop(session_id, None)
+    if handle is None:
+        return {"error": f"no active recording for session_id={session_id}"}
+    frames_count = stop_recorder(handle)
+    duration_s = time.monotonic() - handle.started_monotonic
+
+    session = _registry.get(session_id)
+    if session is None:
+        return {"error": f"session {session_id} missing from registry"}
+    session.stopped_at = utc_now_iso()
+    session.frames_count = frames_count
+    _registry.update(session)
+
+    frames = list_frames_on_disk(Path(session.frames_dir))
+    return {
+        "session_id": session_id,
+        "frames_count": frames_count,
+        "duration_s": duration_s,
+        "frames_dir": session.frames_dir,
+        "frame_paths": [f["path"] for f in frames],
+    }
+
+
+@mcp.tool()
 def cleanup_session(session_id: str) -> dict[str, Any]:
     """Delete all frames and registry data for a session. Always call after analysis."""
     session = _registry.get(session_id)
