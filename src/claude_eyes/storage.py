@@ -111,3 +111,29 @@ def prune_by_size(session_dir: Path, max_bytes: int) -> int:
         except OSError:
             pass
     return removed
+
+
+def frames_in_time_range(
+    session_dir: Path,
+    oldest_ts_ms: int,
+    newest_ts_ms: int,
+) -> list[FrameInfo]:
+    """Return frames whose ``timestamp_ms`` is in ``[oldest_ts_ms, newest_ts_ms]``
+    (inclusive), sorted ascending by timestamp.
+    """
+    if not session_dir.is_dir():
+        return []
+    out: list[FrameInfo] = []
+    for p in session_dir.glob("frame_*.jpg"):
+        parts = p.stem.split("_")
+        if len(parts) != 3:
+            continue
+        try:
+            idx = int(parts[1])
+            ts = int(parts[2])
+        except ValueError:
+            continue
+        if oldest_ts_ms <= ts <= newest_ts_ms:
+            out.append({"path": str(p), "index": idx, "timestamp_ms": ts})
+    out.sort(key=lambda f: f["timestamp_ms"])
+    return out
