@@ -50,3 +50,62 @@ def test_session_to_dict_roundtrips(sessions_dir: Path) -> None:
     d = s.to_dict()
     s2 = RecordingSession(**d)
     assert s == s2
+
+
+import pytest
+
+from claude_eyes.session import SessionRegistry
+
+
+def _make(sessions_dir: Path, name: str = "x") -> RecordingSession:
+    return RecordingSession.create(
+        name=name, fps=3, resolution_scale=1.0, region=None,
+        monitor=0, include_cursor=False, sessions_dir=sessions_dir,
+    )
+
+
+def test_registry_add_get_remove(sessions_dir: Path) -> None:
+    reg = SessionRegistry(sessions_dir)
+    s = _make(sessions_dir)
+
+    reg.add(s)
+
+    assert reg.get(s.session_id) == s
+    assert reg.all() == [s]
+
+    reg.remove(s.session_id)
+
+    assert reg.get(s.session_id) is None
+    assert reg.all() == []
+
+
+def test_registry_persists_across_instances(sessions_dir: Path) -> None:
+    reg1 = SessionRegistry(sessions_dir)
+    s = _make(sessions_dir, name="persisted")
+    reg1.add(s)
+
+    reg2 = SessionRegistry(sessions_dir)
+
+    assert reg2.get(s.session_id) == s
+
+
+def test_registry_update_changes_fields(sessions_dir: Path) -> None:
+    reg = SessionRegistry(sessions_dir)
+    s = _make(sessions_dir)
+    reg.add(s)
+
+    s.frames_count = 42
+    s.stopped_at = "2026-01-01T00:00:00+00:00"
+    reg.update(s)
+
+    reg2 = SessionRegistry(sessions_dir)
+    loaded = reg2.get(s.session_id)
+    assert loaded is not None
+    assert loaded.frames_count == 42
+    assert loaded.stopped_at == "2026-01-01T00:00:00+00:00"
+
+
+def test_registry_tolerates_corrupt_json(sessions_dir: Path) -> None:
+    (sessions_dir / ".registry.json").write_text("{not json", encoding="utf-8")
+    reg = SessionRegistry(sessions_dir)  # must not raise
+    assert reg.all() == []
