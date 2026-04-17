@@ -145,8 +145,12 @@ def _manual_stop_continuous(patched_server) -> None:
         patched_server._continuous_handle = None
 
 
-def test_start_continuous_buffer_activates_and_echoes_config(patched_server, tmp_path: Path) -> None:
-    result = patched_server.start_continuous_buffer(fps=5, retention_s=60, resolution_scale=0.5)
+def test_start_continuous_buffer_activates_and_echoes_config(
+    patched_server, tmp_path: Path
+) -> None:
+    result = patched_server.start_continuous_buffer(
+        fps=5, retention_s=60, resolution_scale=0.5
+    )
 
     assert result["active"] is True
     assert result["config"]["fps"] == 5
@@ -195,7 +199,10 @@ def test_query_buffer_returns_sampled_frames(patched_server) -> None:
     assert "frames" in result
     assert 1 <= len(result["frames"]) <= 5
     assert result["total_in_range"] >= len(result["frames"])
-    assert all(set(f.keys()) >= {"path", "index", "timestamp_ms", "age_s"} for f in result["frames"])
+    assert all(
+        set(f.keys()) >= {"path", "index", "timestamp_ms", "age_s"}
+        for f in result["frames"]
+    )
 
     patched_server.stop_continuous_buffer()
 
@@ -231,7 +238,9 @@ def test_continuous_and_on_demand_coexist(patched_server, tmp_path: Path) -> Non
     cont = patched_server.start_continuous_buffer(fps=5)
     assert cont["active"] is True
 
-    od = patched_server.start_recording(fps=10, resolution_scale=1.0, region=None, session_name="coexist")
+    od = patched_server.start_recording(
+        fps=10, resolution_scale=1.0, region=None, session_name="coexist"
+    )
     sid = od["session_id"]
     time.sleep(0.35)
     od_stop = patched_server.stop_recording(sid)
