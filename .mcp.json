@@ -1,0 +1,18 @@
+{
+  "mcpServers": {
+    "claude_eyes": {
+      "type": "stdio",
+      "command": "${CLAUDE_PROJECT_DIR}/.venv/Scripts/python.exe",
+      "args": ["-m", "claude_eyes.server"],
+      "env": {
+        "CLAUDE_EYES_MONITOR": "${CLAUDE_EYES_MONITOR:-0}",
+        "CLAUDE_EYES_INCLUDE_CURSOR": "${CLAUDE_EYES_INCLUDE_CURSOR:-false}",
+        "CLAUDE_EYES_SESSIONS_DIR": "${CLAUDE_EYES_SESSIONS_DIR:-sessions}",
+        "CLAUDE_EYES_CONTINUOUS_FPS": "${CLAUDE_EYES_CONTINUOUS_FPS:-2}",
+        "CLAUDE_EYES_RETENTION_S": "${CLAUDE_EYES_RETENTION_S:-300}",
+        "CLAUDE_EYES_CONTINUOUS_RESOLUTION_SCALE": "${CLAUDE_EYES_CONTINUOUS_RESOLUTION_SCALE:-0.75}",
+        "CLAUDE_EYES_DISK_CAP_MB": "${CLAUDE_EYES_DISK_CAP_MB:-1024}"
+      }
+    }
+  }
+}
