@@ -73,9 +73,12 @@ def _capture_loop(
                     img = img.resize(new_size, Image.Resampling.LANCZOS)
                 save_frame(session_dir, index, ts_ms, img)
                 index += 1
-            except OSError as exc:
+            except Exception as exc:
+                # Never let a daemon thread die on a single bad frame —
+                # disk full, monitor disconnected, mss edge case, etc.
                 print(
-                    f"[claude-eyes] continuous capture write failed: {exc}",
+                    f"[claude-eyes] continuous capture frame {index} failed: "
+                    f"{type(exc).__name__}: {exc}",
                     file=sys.stderr,
                 )
             next_tick += interval
