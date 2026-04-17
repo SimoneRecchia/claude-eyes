@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+build/
+dist/
+wheels/
+
+# Virtualenv
+.venv/
+venv/
+env/
+ENV/
+
+# Testing / type-checking / linting
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.mypy_cache/
+.ruff_cache/
+coverage.xml
+
+# claudeEyes runtime
+sessions/
+.claude/logs/
+
+# IDE — personal workspace files
+.idea/workspace.xml
+.idea/tasks.xml
+.idea/usage.statistics.xml
+.idea/shelf/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Claude Code personal overrides (user decides what to commit)
+.claude/settings.local.json
+CLAUDE.local.md
