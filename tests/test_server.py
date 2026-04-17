@@ -18,6 +18,7 @@ def patched_server(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
 
     # Fresh import each test
     import importlib
+
     import claude_eyes.recorder as rec_mod
     monkeypatch.setattr(rec_mod.mss, "mss", _FakeMSS)
 
@@ -27,7 +28,9 @@ def patched_server(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
 
 
 def test_start_recording_creates_session_and_directory(patched_server, tmp_path: Path) -> None:
-    result = patched_server.start_recording(fps=5, resolution_scale=1.0, region=None, session_name="t1")
+    result = patched_server.start_recording(
+        fps=5, resolution_scale=1.0, region=None, session_name="t1"
+    )
 
     assert result["session_id"].startswith("sess_")
     assert result["config"]["fps"] == 5
@@ -110,3 +113,21 @@ def test_cleanup_session_stops_still_active_recorder(patched_server) -> None:
     time.sleep(0.2)
     result = patched_server.cleanup_session(sid)
     assert result["deleted"] is True
+
+
+def test_full_flow_start_list_stop_cleanup(patched_server, tmp_path: Path) -> None:
+    start = patched_server.start_recording(fps=10, resolution_scale=0.5, region=(0, 0, 8, 8))
+    sid = start["session_id"]
+    assert start["config"]["resolution_scale"] == 0.5
+
+    time.sleep(0.4)
+
+    mid = patched_server.list_frames(sid)
+    assert len(mid["frames"]) >= 1
+
+    end = patched_server.stop_recording(sid)
+    assert end["frames_count"] == len(end["frame_paths"])
+
+    cleanup = patched_server.cleanup_session(sid)
+    assert cleanup["deleted"] is True
+    assert patched_server._registry.get(sid) is None

@@ -24,7 +24,7 @@ class _FakeMSS:
             {"left": 0, "top": 0, "width": 8, "height": 8},
         ]
 
-    def __enter__(self) -> "_FakeMSS":
+    def __enter__(self) -> _FakeMSS:
         return self
 
     def __exit__(self, *a: object) -> None:

@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 import secrets
 from dataclasses import asdict, dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -14,7 +14,7 @@ def _make_id() -> str:
 
 
 def utc_now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 @dataclass
@@ -42,14 +42,14 @@ class RecordingSession:
         monitor: int,
         include_cursor: bool,
         sessions_dir: Path,
-    ) -> "RecordingSession":
+    ) -> RecordingSession:
         sid = _make_id()
         return cls(
             session_id=sid,
             name=name or sid,
             fps=fps,
             resolution_scale=resolution_scale,
-            region=tuple(region) if region is not None else None,
+            region=region,
             monitor=monitor,
             include_cursor=include_cursor,
             started_at=utc_now_iso(),
