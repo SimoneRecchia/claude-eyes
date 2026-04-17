@@ -79,3 +79,34 @@ def test_list_frames_returns_current_frames(patched_server) -> None:
 def test_list_frames_unknown_session_returns_error(patched_server) -> None:
     result = patched_server.list_frames("sess_nope")
     assert "error" in result
+
+
+def test_cleanup_session_removes_frames_and_registry(patched_server) -> None:
+    start = patched_server.start_recording(fps=10, resolution_scale=1.0, region=None)
+    sid = start["session_id"]
+    time.sleep(0.3)
+    patched_server.stop_recording(sid)
+    frames_dir = Path(patched_server._registry.get(sid).frames_dir)
+    assert frames_dir.is_dir()
+
+    result = patched_server.cleanup_session(sid)
+
+    assert result["deleted"] is True
+    assert result["freed_bytes"] > 0
+    assert not frames_dir.exists()
+    assert patched_server._registry.get(sid) is None
+
+
+def test_cleanup_session_unknown_session_reports_not_deleted(patched_server) -> None:
+    result = patched_server.cleanup_session("sess_ghost")
+    assert result["deleted"] is False
+    assert result["freed_bytes"] == 0
+
+
+def test_cleanup_session_stops_still_active_recorder(patched_server) -> None:
+    start = patched_server.start_recording(fps=10, resolution_scale=1.0, region=None)
+    sid = start["session_id"]
+    # do NOT call stop_recording — cleanup should still succeed
+    time.sleep(0.2)
+    result = patched_server.cleanup_session(sid)
+    assert result["deleted"] is True
