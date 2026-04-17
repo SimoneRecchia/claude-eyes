@@ -59,3 +59,23 @@ def test_stop_recording_returns_frame_metadata(patched_server) -> None:
 def test_stop_recording_unknown_session_returns_error(patched_server) -> None:
     result = patched_server.stop_recording("sess_doesnotexist")
     assert "error" in result
+
+
+def test_list_frames_returns_current_frames(patched_server) -> None:
+    start = patched_server.start_recording(fps=10, resolution_scale=1.0, region=None)
+    sid = start["session_id"]
+    time.sleep(0.35)
+    listed = patched_server.list_frames(sid)
+
+    assert listed["session_id"] == sid
+    assert len(listed["frames"]) >= 1
+    first = listed["frames"][0]
+    assert set(first.keys()) == {"path", "index", "timestamp_ms"}
+
+    patched_server.stop_recording(sid)
+    patched_server.cleanup_session(sid)
+
+
+def test_list_frames_unknown_session_returns_error(patched_server) -> None:
+    result = patched_server.list_frames("sess_nope")
+    assert "error" in result

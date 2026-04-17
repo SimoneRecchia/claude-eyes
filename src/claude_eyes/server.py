@@ -96,6 +96,18 @@ def stop_recording(session_id: str) -> dict[str, Any]:
 
 
 @mcp.tool()
+def list_frames(session_id: str) -> dict[str, Any]:
+    """List frames of a session without stopping it. Safe on active sessions."""
+    session = _registry.get(session_id)
+    if session is None:
+        return {"error": f"unknown session {session_id}"}
+    return {
+        "session_id": session_id,
+        "frames": list_frames_on_disk(Path(session.frames_dir)),
+    }
+
+
+@mcp.tool()
 def cleanup_session(session_id: str) -> dict[str, Any]:
     """Delete all frames and registry data for a session. Always call after analysis."""
     session = _registry.get(session_id)
