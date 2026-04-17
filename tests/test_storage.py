@@ -10,6 +10,7 @@ from claude_eyes.storage import (
     frame_filename,
     list_frames,
     prune_by_age,
+    prune_by_size,
     save_frame,
 )
 
@@ -105,3 +106,34 @@ def test_prune_by_age_tolerates_malformed_filenames(tmp_path: Path) -> None:
 
     assert removed == 1
     assert (sess / "frame_bad_name.jpg").exists()
+
+
+def test_prune_by_size_removes_oldest_first(tmp_path: Path) -> None:
+    sess = tmp_path / "p_size"
+    _touch_frame(sess, 0, 123_456_789)
+    _touch_frame(sess, 1, 234_567_890)
+    _touch_frame(sess, 2, 345_678_901)
+    total = sum(p.stat().st_size for p in sess.glob("frame_*.jpg"))
+    target = int(total * 0.4)
+
+    removed = prune_by_size(sess, max_bytes=target)
+
+    assert removed >= 1
+    remaining = sorted(p.name for p in sess.glob("frame_*.jpg"))
+    assert not any("00000" in name for name in remaining)
+    assert any("00002" in name for name in remaining)
+
+
+def test_prune_by_size_under_cap_is_noop(tmp_path: Path) -> None:
+    sess = tmp_path / "p_size_noop"
+    _touch_frame(sess, 0, 1000)
+    _touch_frame(sess, 1, 2000)
+
+    removed = prune_by_size(sess, max_bytes=10 * 1024 * 1024)
+
+    assert removed == 0
+    assert len(list(sess.glob("frame_*.jpg"))) == 2
+
+
+def test_prune_by_size_missing_dir(tmp_path: Path) -> None:
+    assert prune_by_size(tmp_path / "nope", max_bytes=1000) == 0
