@@ -23,6 +23,16 @@
             "timeout": 10
           }
         ]
+      },
+      {
+        "matcher": "mcp__claude_eyes__start_continuous_buffer",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/log_continuous_start.py\"",
+            "timeout": 10
+          }
+        ]
       }
     ]
   }
