@@ -80,6 +80,31 @@ The `analyze-screen` skill orchestrates this end-to-end. Follow it:
 - **Never raise `fps` or `resolution_scale` "just in case."** Higher values = more tokens for the subagent and more disk. Match the task.
 - **Never dispatch analysis directly from the main agent.** Always go through the `frame-analyzer` subagent. Main agent = orchestration, subagent = vision.
 
+## Continuous mode (rolling buffer)
+
+claudeEyes also supports a **continuous rolling buffer**: a low-fps background capture that keeps the last N minutes of screen activity on disk, for "what did I just do" style questions. It is separate from on-demand recording and coexists with it.
+
+### Hard rules
+
+- **Never start the buffer on your own.** It starts ONLY when the user explicitly asks ("parti con il buffer", "attiva la registrazione continua", "start the continuous buffer", "record my screen in the background").
+- **Always inform the user when the buffer starts or stops.** The privacy guardrail hook will inject a reminder when it starts; act on it.
+- **Use `review-recent-activity` skill** for queries against the buffer. Use `analyze-screen` skill for on-demand animation / UI analysis. They do not overlap.
+
+### The three continuous-mode tools
+
+| Tool | When |
+|---|---|
+| `start_continuous_buffer(fps=2, retention_s=300, resolution_scale=0.75)` | User explicitly asks to begin. |
+| `stop_continuous_buffer()` | User explicitly asks to stop, or when Claude Code session ends. |
+| `query_buffer(time_range_s, max_frames=30)` | User asks about recent activity. Sampled frames are then passed to the `frame-analyzer` subagent. |
+
+Defaults are chosen to be cheap on disk (~200 MB for 5 min at 2 fps / scale 0.75). User can override via env vars (`CLAUDE_EYES_CONTINUOUS_FPS`, `CLAUDE_EYES_RETENTION_S`, `CLAUDE_EYES_CONTINUOUS_RESOLUTION_SCALE`, `CLAUDE_EYES_DISK_CAP_MB`).
+
+### Response contract
+
+- Tool errors are structured (`{"error": "..."}`) — never raise. Handle them by telling the user what to do next.
+- `query_buffer` may return a `warning` field when the requested range exceeds actual buffer age; relay that honestly.
+
 ## Related files
 
 - Subagent: `.claude/agents/frame-analyzer.md` — vision analysis instructions.
