@@ -366,3 +366,25 @@ def test_start_recording_forwards_region_dpr(patched_server, tmp_path: Path) -> 
     assert grabbed[0] == {"left": 20, "top": 40, "width": 60, "height": 80}
 
     patched_server.cleanup_session(sid)
+
+
+def test_stop_recording_attaches_fps_effective_and_active_range(
+    patched_server, tmp_path: Path
+) -> None:
+    start = patched_server.start_recording(fps=10, resolution_scale=1.0, region=None)
+    sid = start["session_id"]
+    time.sleep(1.2)
+    result = patched_server.stop_recording(sid)
+
+    assert "fps_effective" in result
+    assert "active_range" in result
+    assert "activity_score_mean" in result
+    assert isinstance(result["fps_effective"], float)
+    assert result["fps_effective"] > 0
+    assert result["active_range"] is None or (
+        isinstance(result["active_range"], list)
+        and len(result["active_range"]) == 2
+    )
+    assert isinstance(result["activity_score_mean"], float)
+
+    patched_server.cleanup_session(sid)
