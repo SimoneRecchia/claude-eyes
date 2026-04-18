@@ -34,9 +34,17 @@ Follow these steps in order. Skipping cleanup at the end is a bug.
 
 4. **Stop recording.** Call `mcp__claude_eyes__stop_recording(session_id)`. It returns the list of frame paths and metadata.
 
-5. **Dispatch the `frame-analyzer` subagent** via the `Task` tool. Pass:
-   - `subagent_type: "frame-analyzer"`
-   - A prompt containing: the frame paths (one per line), the user's question, and optional context.
+5. **Scan then drill** — optimise token spend on the subagent:
+
+   **If `frames_count < 30`**: pass `frame_paths` directly to the subagent, as before.
+
+   **Otherwise** (frames_count ≥ 30, previews are attached to the `stop_recording` response):
+
+   a. **Scan pass.** Dispatch `frame-analyzer` with ONLY `previews.items[*].preview_path`. Prompt it to identify which bucket indices contain the behaviour the user asked about, and to return a list of `bucket_index` values.
+
+   b. **Drill pass.** Using the bucket indices the subagent returned, compute the subset of `frame_paths` whose indices fall inside any chosen bucket's `frame_range`. Dispatch `frame-analyzer` again with that filtered list and the original user question. Answer from the second report.
+
+   If the first dispatch returns no interesting buckets, tell the user nothing notable happened in the recording. Do not dispatch a drill pass on an empty result.
 
 6. **Cleanup.** Call `mcp__claude_eyes__cleanup_session(session_id)`. **Always.** Even if the analysis failed, even if the user interrupted, even if the subagent returned nothing useful.
 
@@ -54,6 +62,14 @@ See `CLAUDE.md` for the full heuristics. Summary:
 | Layout-only check | 2–3 | 0.5 | full / large area |
 | Movement tracking | 5 | 0.25 | full |
 | Micro-stutter debug | 20–30 | 1.0 | tight bbox |
+
+### Preview modes (passed via `compose_timeline_preview` if the default doesn't help)
+
+| Mode | Use when |
+|---|---|
+| `avg` (default) | General "state of the bucket" — static content stays readable, motion shows as soft trail. |
+| `max` | Cursor trails, animation smoothness checks, UI with bright elements on dark background. |
+| `motion` | Long recordings where the question is "when did something happen" — heatmap of change. |
 
 ## Example dispatch
 
@@ -80,6 +96,8 @@ Context: Captured at 10 fps during a user click on #submit.
 - **Setting `fps=30` "to be safe".** 30 fps × 10 s = 300 frames. The subagent will be slow and expensive. Match the task.
 - **Doing the visual analysis in the main agent.** Main agent = orchestration. Visual reasoning belongs in the subagent.
 - **Starting a recording before knowing the question.** Without a clear question you cannot pick parameters, and the subagent has nothing to answer.
+- **Skipping the scan pass when `frames_count >= 30`.** Sending hundreds of raw frames to the subagent burns tokens for no reason. The scan pass is your coarse map.
+- **Asking the scan subagent for a final answer.** Its job is only to identify interesting bucket indices — the drill pass answers the question.
 
 ## Related
 
