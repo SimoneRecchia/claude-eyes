@@ -1,0 +1,20 @@
+# Normalize all text files to LF on commit. Avoids CRLF warnings on Windows
+# checkouts while keeping .py, .md, .yml, .json etc. consistent across OSes.
+* text=auto eol=lf
+
+# Explicitly mark binaries (just in case git ever guesses wrong).
+*.jpg binary
+*.jpeg binary
+*.png binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.pdf binary
+*.zip binary
+*.tar binary
+*.gz binary
+
+# Windows shell scripts keep CRLF so Windows can parse them.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
