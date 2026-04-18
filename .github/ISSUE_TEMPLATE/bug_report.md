@@ -1,6 +1,6 @@
 ---
 name: Bug report
-about: Something claudeEyes did wrong or didn't do
+about: Something claude-eyes did wrong or didn't do
 title: "[bug] "
 labels: bug
 assignees: ""
@@ -24,7 +24,7 @@ assignees: ""
 
 - **OS** (Windows 11 / macOS 14 / Ubuntu 24.04 / …):
 - **Python version** (`python --version`):
-- **claudeEyes version** (git SHA or tag):
+- **claude-eyes version** (git SHA or tag):
 - **Claude client** (Claude Code / Claude Desktop / other):
 
 ## Relevant MCP tool call and response

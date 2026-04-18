@@ -1,4 +1,4 @@
-"""claudeEyes MCP server — stdio transport via FastMCP."""
+"""claude-eyes MCP server — stdio transport via FastMCP."""
 from __future__ import annotations
 
 import shutil

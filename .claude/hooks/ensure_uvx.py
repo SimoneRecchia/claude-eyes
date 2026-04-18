@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """SessionStart hook: verify ``uvx`` is on PATH.
 
-When claudeEyes is installed as a Claude Code plugin, its MCP server is
-launched via ``uvx --from git+https://github.com/SimoneRecchia/claudeEyes
+When claude-eyes is installed as a Claude Code plugin, its MCP server is
+launched via ``uvx --from git+https://github.com/SimoneRecchia/claude-eyes
 claude-eyes``. That requires ``uv`` (which ships ``uvx``) to be
 installed on the user's machine.
 
@@ -25,12 +25,12 @@ import sys
 
 def _uv_install_instructions() -> str:
     return (
-        "[claudeEyes] I noticed ``uvx`` is not available on this system. "
-        "The claudeEyes plugin uses ``uv`` to run its Python MCP server "
+        "[claude-eyes] I noticed ``uvx`` is not available on this system. "
+        "The claude-eyes plugin uses ``uv`` to run its Python MCP server "
         "without any manual setup. Please install ``uv`` with one of:\n\n"
         "  macOS / Linux:  curl -LsSf https://astral.sh/uv/install.sh | sh\n"
         "  Windows:        powershell -c \"irm https://astral.sh/uv/install.ps1 | iex\"\n\n"
-        "After installing, restart Claude Code. Until then, the claudeEyes "
+        "After installing, restart Claude Code. Until then, the claude-eyes "
         "MCP tools will not be callable. Please tell the user about this "
         "in your next response."
     )
