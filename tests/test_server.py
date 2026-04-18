@@ -459,3 +459,20 @@ def test_trim_session_all_static_returns_no_range_error(
     assert "no active range" in result["error"]
 
     patched_server.cleanup_session(sid)
+
+
+def test_query_buffer_includes_fps_effective_and_active_range(patched_server) -> None:
+    patched_server.start_continuous_buffer(fps=10)
+    time.sleep(1.2)
+    result = patched_server.query_buffer(time_range_s=5, max_frames=5)
+
+    assert "fps_effective" in result
+    assert "active_range" in result
+    assert "activity_score_mean" in result
+    assert isinstance(result["fps_effective"], float)
+    assert result["active_range"] is None or (
+        isinstance(result["active_range"], list)
+        and len(result["active_range"]) == 2
+    )
+
+    patched_server.stop_continuous_buffer()

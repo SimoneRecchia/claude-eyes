@@ -408,6 +408,18 @@ def query_buffer(
             if b.ts_end_ms >= oldest and b.ts_start_ms <= now_ms
         ]
 
+        try:
+            indices = {f["index"] for f in all_frames}
+            active_range, score_mean = detect_active_range(
+                handle.session_dir, include_frame_indices=indices
+            )
+        except Exception as exc:
+            print(f"[claude-eyes] activity detection failed: {exc}", file=sys.stderr)
+            active_range, score_mean = None, 0.0
+
+        effective_range_s = max(0.001, (now_ms - oldest) / 1000)
+        fps_effective = compute_fps_effective(len(all_frames), effective_range_s)
+
         result: dict[str, Any] = {
             "frames": enriched,
             "total_in_range": len(all_frames),
@@ -427,6 +439,9 @@ def query_buffer(
                     for b in filtered_items
                 ],
             },
+            "fps_effective": fps_effective,
+            "active_range": list(active_range) if active_range is not None else None,
+            "activity_score_mean": round(score_mean, 3),
         }
         if clamped:
             effective_s = max(0, (now_ms - buffer_oldest) // 1000)
