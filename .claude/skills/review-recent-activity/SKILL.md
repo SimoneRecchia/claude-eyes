@@ -1,6 +1,6 @@
 ---
 name: review-recent-activity
-description: Use when the user asks about something they recently did on screen — "what did I just do", "cosa ho fatto", "riassumi gli ultimi N minuti", "cosa è successo nel buffer", "ricordami cosa stavo facendo". Requires the continuous buffer to already be active (the user must have started it explicitly).
+description: Use when the user asks about something they recently did on screen — "what did I just do", "cosa ho fatto", "riassumi gli ultimi N minuti", "cosa è successo nel buffer", "ricordami cosa stavo facendo". Requires the continuous buffer to already be active (the user must have started it explicitly). For a targeted on-demand capture of a specific Chrome animation, prefer `analyze-page-animation` instead.
 ---
 
 # review-recent-activity
