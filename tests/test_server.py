@@ -260,6 +260,91 @@ def test_continuous_and_on_demand_coexist(patched_server, tmp_path: Path) -> Non
     patched_server.cleanup_session(sid)
 
 
+def test_query_buffer_includes_previews_in_range(patched_server) -> None:
+    patched_server.start_continuous_buffer(fps=10)
+    time.sleep(1.3)
+    result = patched_server.query_buffer(time_range_s=5, max_frames=5)
+
+    assert "previews" in result
+    assert result["previews"]["mode"] == "avg"
+    assert result["previews"]["bucket_s"] == 1.0
+    items = result["previews"]["items"]
+    assert len(items) >= 1
+    for it in items:
+        assert Path(it["preview_path"]).exists()
+        assert it["ts_start_ms"] <= 5000
+        assert it["ts_end_ms"] >= 0
+
+    patched_server.stop_continuous_buffer()
+
+
+def test_stop_recording_attaches_previews(patched_server, tmp_path: Path) -> None:
+    start = patched_server.start_recording(fps=10, resolution_scale=1.0, region=None)
+    sid = start["session_id"]
+    time.sleep(1.2)
+    result = patched_server.stop_recording(sid)
+
+    assert "previews" in result
+    assert result["previews"]["mode"] == "avg"
+    assert result["previews"]["bucket_s"] == 1.0
+    items = result["previews"]["items"]
+    assert len(items) >= 1
+    first = items[0]
+    assert set(first.keys()) >= {
+        "bucket_index",
+        "preview_path",
+        "frame_range",
+        "ts_start_ms",
+        "ts_end_ms",
+    }
+    assert Path(first["preview_path"]).exists()
+
+    patched_server.cleanup_session(sid)
+
+
+def test_compose_timeline_preview_tool_works(patched_server) -> None:
+    start = patched_server.start_recording(fps=10, resolution_scale=1.0, region=None)
+    sid = start["session_id"]
+    time.sleep(1.2)
+    patched_server.stop_recording(sid)
+
+    result = patched_server.compose_timeline_preview(
+        session_id=sid, bucket_s=0.5, mode="max"
+    )
+
+    assert result["session_id"] == sid
+    assert result["mode"] == "max"
+    assert result["bucket_s"] == 0.5
+    assert len(result["items"]) >= 1
+    first = result["items"][0]
+    assert "preview_max_" in first["preview_path"]
+    assert Path(first["preview_path"]).exists()
+
+    patched_server.cleanup_session(sid)
+
+
+def test_compose_timeline_preview_unknown_session_returns_error(patched_server) -> None:
+    result = patched_server.compose_timeline_preview(session_id="sess_ghost")
+    assert "error" in result
+    assert "unknown session" in result["error"]
+
+
+def test_compose_timeline_preview_empty_session_returns_error(patched_server) -> None:
+    start = patched_server.start_recording(fps=10, resolution_scale=1.0, region=None)
+    sid = start["session_id"]
+    patched_server.stop_recording(sid)
+    from pathlib import Path as _P
+    sess_dir = _P(patched_server._registry.get(sid).frames_dir)
+    for p in sess_dir.glob("frame_*.jpg"):
+        p.unlink()
+
+    result = patched_server.compose_timeline_preview(session_id=sid)
+    assert "error" in result
+    assert "no frames" in result["error"]
+
+    patched_server.cleanup_session(sid)
+
+
 def test_start_recording_forwards_region_dpr(patched_server, tmp_path: Path) -> None:
     """Region passed to the tool is scaled by region_dpr before hitting mss."""
     from tests.test_recorder import _FakeMSS

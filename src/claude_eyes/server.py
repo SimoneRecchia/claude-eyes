@@ -5,10 +5,11 @@ import sys
 import threading
 import time
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from mcp.server.fastmcp import FastMCP
 
+from .compose import compose_bucketed_preview
 from .config import (
     CONTINUOUS_SESSION_DIR_NAME,
     DEFAULT_CONTINUOUS_FPS,
@@ -112,12 +113,35 @@ def stop_recording(session_id: str) -> dict[str, Any]:
     _registry.update(session)
 
     frames = list_frames_on_disk(Path(session.frames_dir))
+
+    try:
+        bucket_items = compose_bucketed_preview(
+            Path(session.frames_dir), bucket_s=1.0, mode="avg"
+        )
+    except Exception as exc:
+        print(f"[claude-eyes] preview composition failed: {exc}", file=sys.stderr)
+        bucket_items = []
+
     return {
         "session_id": session_id,
         "frames_count": frames_count,
         "duration_s": duration_s,
         "frames_dir": session.frames_dir,
         "frame_paths": [f["path"] for f in frames],
+        "previews": {
+            "mode": "avg",
+            "bucket_s": 1.0,
+            "items": [
+                {
+                    "bucket_index": b.bucket_index,
+                    "preview_path": b.preview_path,
+                    "frame_range": list(b.frame_range),
+                    "ts_start_ms": b.ts_start_ms,
+                    "ts_end_ms": b.ts_end_ms,
+                }
+                for b in bucket_items
+            ],
+        },
     }
 
 
@@ -144,6 +168,53 @@ def cleanup_session(session_id: str) -> dict[str, Any]:
     freed = cleanup_session_dir(Path(session.frames_dir))
     _registry.remove(session_id)
     return {"deleted": True, "freed_bytes": freed}
+
+
+@mcp.tool()
+def compose_timeline_preview(
+    session_id: str,
+    bucket_s: float = 1.0,
+    mode: Literal["avg", "max", "motion"] = "avg",
+) -> dict[str, Any]:
+    """Recompose the bucket previews of an existing on-demand session with
+    different parameters. Writes preview files under
+    ``sessions/<session_id>/previews/`` and returns their metadata.
+
+    Continuous buffer sessions are not addressable by this tool; use
+    ``query_buffer`` instead to get preview metadata for the rolling buffer.
+    """
+    session = _registry.get(session_id)
+    if session is None:
+        return {"error": f"unknown session {session_id}"}
+
+    try:
+        items = compose_bucketed_preview(
+            Path(session.frames_dir), bucket_s=bucket_s, mode=mode
+        )
+    except Exception as exc:
+        return {"error": f"compose failed: {exc}"}
+
+    if not items:
+        return {"error": "session has no frames"}
+
+    effective_bucket_s = max(0.1, bucket_s)
+    effective_mode = mode if mode in ("avg", "max", "motion") else "avg"
+
+    return {
+        "session_id": session_id,
+        "mode": effective_mode,
+        "bucket_s": effective_bucket_s,
+        "items": [
+            {
+                "bucket_index": b.bucket_index,
+                "preview_path": b.preview_path,
+                "frame_range": list(b.frame_range),
+                "ts_start_ms": b.ts_start_ms,
+                "ts_end_ms": b.ts_end_ms,
+            }
+            for b in items
+        ],
+    }
 
 
 @mcp.tool()
@@ -241,11 +312,39 @@ def query_buffer(
             }
             for f in sampled
         ]
+
+        try:
+            bucket_items = compose_bucketed_preview(
+                handle.session_dir, bucket_s=1.0, mode="avg"
+            )
+        except Exception as exc:
+            print(f"[claude-eyes] preview composition failed: {exc}", file=sys.stderr)
+            bucket_items = []
+
+        filtered_items = [
+            b for b in bucket_items
+            if b.ts_end_ms >= oldest and b.ts_start_ms <= now_ms
+        ]
+
         result: dict[str, Any] = {
             "frames": enriched,
             "total_in_range": len(all_frames),
             "oldest_frame_age_s": enriched[0]["age_s"] if enriched else 0.0,
             "newest_frame_age_s": enriched[-1]["age_s"] if enriched else 0.0,
+            "previews": {
+                "mode": "avg",
+                "bucket_s": 1.0,
+                "items": [
+                    {
+                        "bucket_index": b.bucket_index,
+                        "preview_path": b.preview_path,
+                        "frame_range": list(b.frame_range),
+                        "ts_start_ms": b.ts_start_ms,
+                        "ts_end_ms": b.ts_end_ms,
+                    }
+                    for b in filtered_items
+                ],
+            },
         }
         if clamped:
             effective_s = max(0, (now_ms - buffer_oldest) // 1000)
