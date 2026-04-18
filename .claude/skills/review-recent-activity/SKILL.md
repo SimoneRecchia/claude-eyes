@@ -19,17 +19,21 @@ Orchestrates a query against the continuous rolling buffer: pick a time range, s
 - The user has not started the continuous buffer → tell them how to start it and stop.
 - A single fresh screenshot would answer the question → use the native screenshot tool.
 
+## Precheck: is the buffer the right tool?
+
+Before running the workflow, decide whether the buffer can actually answer the question.
+
+**If the user's question involves motion quality** (gestures, trails, smoothness, or a shape the cursor is drawing), the 2 fps buffer is **insufficient**. Do not attempt to answer from it. Tell the user:
+
+> "The continuous buffer is sampled at 2 fps — for motion-quality questions we need an on-demand recording at a higher frame rate. Should I start one?"
+
+If the user agrees, switch to the `analyze-screen` skill with fps ≥ 20. The continuous buffer can keep running — it coexists with on-demand recordings.
+
+**For existence/layout questions** ("what was on the menu", "which apps were open") **and long-recall questions** ("what did I do in the last 10 minutes"), the buffer is the right tool — continue with the workflow below.
+
 ## Workflow
 
 1. **Check the buffer is active.** If a previous `query_buffer` / `start_continuous_buffer` response indicated the buffer is idle, say so and ask the user whether to start it. Don't start it silently.
-
-1.5. **Check if the buffer is the right tool.** If the user's question involves motion quality (gestures, trails, smoothness, or a shape the cursor is drawing), the 2 fps buffer is **insufficient**. Do not attempt to answer from it. Tell the user:
-
-   > "The continuous buffer is sampled at 2 fps — for motion-quality questions we need an on-demand recording at a higher frame rate. Should I start one?"
-
-   If the user agrees, switch to the `analyze-screen` skill with fps ≥ 20. The continuous buffer can keep running — it coexists with on-demand recordings.
-
-   For existence/layout questions ("what was on the menu", "which apps were open") and long-recall questions ("what did I do in the last 10 minutes"), the buffer is the right tool — continue with the workflow below.
 
 2. **Pick `time_range_s` from phrasing.** Defaults:
    - "just now" / "a moment ago" → 60 s

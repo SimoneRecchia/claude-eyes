@@ -52,9 +52,14 @@ Follow these steps in order. Skipping cleanup at the end is a bug.
 
    If the first dispatch returns no interesting buckets, tell the user nothing notable happened in the recording. Do not dispatch a drill pass on an empty result.
 
-7. **Cleanup.** Call `mcp__claude_eyes__cleanup_session(session_id)`. **Always.** Even if the analysis failed, even if the user interrupted, even if the subagent returned nothing useful.
+7. **Retry once if the answer is uncertain.** If the subagent's response hedges ("I think", "probably", "hard to tell"), is under ~20 words for a qualitative question, or conflicts with a hint the user gave, retry using the tactic priority in `CLAUDE.md § Retry protocol`:
 
-8. **Retry once if the answer is uncertain.** If the subagent's response hedges ("I think", "probably", "hard to tell"), is under ~20 words for a qualitative question, or conflicts with a hint the user gave, retry with different parameters using the tactic priority in `CLAUDE.md § Retry protocol`. Cleanup the first session before starting the second. If the second attempt also fails, tell the user what you tried and ask for a specific hint.
+   - **Cheap retries (reuse the current session)**: preview mode change via `compose_timeline_preview(mode="max"|"motion")` + re-run drill pass. Do this BEFORE cleanup — the session must still exist.
+   - **Expensive retries (new session)**: lower `resolution_scale`, narrow `region`, or bump `fps`. Call `cleanup_session` on the current session first, then `start_recording` again from step 3.
+
+   If the second attempt also fails, tell the user what you tried and ask for a specific hint.
+
+8. **Cleanup.** Call `mcp__claude_eyes__cleanup_session(session_id)` on whatever session is current after step 7. **Always.** Even if the analysis failed, even if the user interrupted, even if the subagent returned nothing useful.
 
 9. **Answer the user.** Synthesize the subagent's report into a direct, concise answer. Do not paste the whole report — extract what matters for the question.
 

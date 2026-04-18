@@ -163,12 +163,17 @@ If the first analysis attempt fails or hedges, retry ONCE with different paramet
 
 **Retry tactics** (apply in this priority order, pick the first that fits):
 
-1. **I/O-first.** If `fps_effective < 50% × fps_nominal`, lower `resolution_scale` to 0.5 OR narrow `region` to a single monitor before touching fps. Raising fps under I/O bottleneck is wasted.
-2. **Preview mode.** For motion/trail with a vague answer, switch `compose_timeline_preview(mode="max")` and re-run the drill. For timing, switch to `mode="motion"`.
-3. **Drill scope.** If the first drill used the whole `active_range`, narrow to a single bucket and drill that alone (higher frame density on the moment that matters).
-4. **fps bump.** Only after 1–3 have been applied, bump `fps` by +5 (cap at 30).
+1. **I/O-first** (requires new recording). If `fps_effective < 50% × fps_nominal`, lower `resolution_scale` to 0.5 OR narrow `region` to a single monitor before touching fps. Raising fps under I/O bottleneck is wasted.
+2. **Preview mode** (reuses current session — cheap). For motion/trail with a vague answer, call `compose_timeline_preview(mode="max")` on the existing session and re-run the drill pass. For timing, use `mode="motion"`.
+3. **Drill scope** (reuses current session — cheap). If the first drill used the whole `active_range`, narrow to a single bucket and drill that alone (higher frame density on the moment that matters).
+4. **fps bump** (requires new recording). Only after 1–3 have been applied, bump `fps` by +5 (cap at 30). If the first attempt was already at the category ceiling (30 fps for motion), skip this tactic — I/O or preview-mode tactics are the real fix; surface the failure to the user if nothing else helped.
 
-Always call `cleanup_session` on the first recording before starting the second. If the second attempt also fails, tell the user what you tried and ask for a specific hint — do not loop.
+**Session lifecycle during retry:**
+
+- **Cheap retries (tactics 2 and 3)** operate on the EXISTING session. Do them BEFORE calling `cleanup_session` — the session files must still exist.
+- **Expensive retries (tactics 1 and 4)** require a new recording. Call `cleanup_session` on the current session first, then start a fresh one.
+
+If the second attempt also fails, tell the user what you tried and ask for a specific hint — do not loop.
 
 ## Related files
 
