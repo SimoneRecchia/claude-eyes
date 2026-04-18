@@ -5,7 +5,7 @@
       "command": "uvx",
       "args": [
         "--from",
-        "git+https://github.com/SimoneRecchia/claudeEyes",
+        "git+https://github.com/SimoneRecchia/claude-eyes",
         "claude-eyes"
       ],
       "env": {

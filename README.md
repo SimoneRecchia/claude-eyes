@@ -1,6 +1,6 @@
-# claudeEyes
+# claude-eyes
 
-[![CI](https://github.com/SimoneRecchia/claudeEyes/actions/workflows/ci.yml/badge.svg)](https://github.com/SimoneRecchia/claudeEyes/actions/workflows/ci.yml)
+[![CI](https://github.com/SimoneRecchia/claude-eyes/actions/workflows/ci.yml/badge.svg)](https://github.com/SimoneRecchia/claude-eyes/actions/workflows/ci.yml)
 [![Python 3.13+](https://img.shields.io/badge/python-3.13%2B-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Checked with mypy](https://img.shields.io/badge/mypy-strict-1f5082.svg)](https://mypy-lang.org/)
@@ -9,7 +9,7 @@
 
 MCP server that gives Claude **visual awareness of what happens on screen over time**.
 
-A single screenshot answers "what is on screen right now". claudeEyes answers
+A single screenshot answers "what is on screen right now". claude-eyes answers
 "what changed on screen between T₀ and T₁" — animations, UI transitions,
 loading states, drag/scroll interactions, reveal-on-scroll, media playback,
 and anything else that only makes sense as a sequence of frames.
@@ -23,7 +23,7 @@ on disk.
 
 ## Mental model
 
-| Use claudeEyes when… | Don't use it when… |
+| Use claude-eyes when… | Don't use it when… |
 |---|---|
 | the question is "what happens when…" | a single screenshot answers it |
 | animation quality matters (smoothness, glitches) | the answer is in code or docs |
@@ -151,7 +151,7 @@ cleanup.
 ### As a Claude Code plugin (recommended — one command)
 
 ```
-/plugin marketplace add SimoneRecchia/claudeEyes
+/plugin marketplace add SimoneRecchia/claude-eyes
 /plugin install claude-eyes@claude-eyes
 ```
 
@@ -179,8 +179,8 @@ powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
 ### From source (for contributors)
 
 ```bash
-git clone https://github.com/SimoneRecchia/claudeEyes
-cd claudeEyes
+git clone https://github.com/SimoneRecchia/claude-eyes
+cd claude-eyes
 python -m venv .venv
 .venv/Scripts/activate   # or `source .venv/bin/activate` on macOS/Linux
 pip install -e .[dev]
