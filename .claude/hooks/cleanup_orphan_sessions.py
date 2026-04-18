@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""SessionEnd hook — cleanup orphan claudeEyes recording sessions.
+"""SessionEnd hook — cleanup orphan claude-eyes recording sessions.
 
 Runs when the Claude Code session ends. Removes any recording session
 folders left behind in ``sessions/`` because the main agent forgot to
@@ -41,11 +41,11 @@ def main() -> None:
 
     if removed:
         print(
-            f"[claudeEyes] SessionEnd cleanup: removed {removed} orphan session(s).",
+            f"[claude-eyes] SessionEnd cleanup: removed {removed} orphan session(s).",
             file=sys.stderr,
         )
     for err in errors:
-        print(f"[claudeEyes] cleanup failed: {err}", file=sys.stderr)
+        print(f"[claude-eyes] cleanup failed: {err}", file=sys.stderr)
 
 
 if __name__ == "__main__":

@@ -30,7 +30,7 @@ def main() -> int:
     try:
         log_dir.mkdir(parents=True, exist_ok=True)
     except OSError as exc:
-        print(f"[claudeEyes] cannot create log dir: {exc}", file=sys.stderr)
+        print(f"[claude-eyes] cannot create log dir: {exc}", file=sys.stderr)
         return 0
 
     tool_input = payload.get("tool_input") or {}
@@ -49,10 +49,10 @@ def main() -> int:
         with (log_dir / "recordings.jsonl").open("a", encoding="utf-8") as fh:
             fh.write(json.dumps(entry) + "\n")
     except OSError as exc:
-        print(f"[claudeEyes] log write failed: {exc}", file=sys.stderr)
+        print(f"[claude-eyes] log write failed: {exc}", file=sys.stderr)
 
     reminder = (
-        f"[claudeEyes] Recording session '{session_id}' stopped. "
+        f"[claude-eyes] Recording session '{session_id}' stopped. "
         "Remember to call mcp__claude_eyes__cleanup_session after the "
         "frame-analyzer subagent has finished."
     )

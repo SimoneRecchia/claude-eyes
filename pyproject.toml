@@ -38,10 +38,10 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/SimoneRecchia/claudeEyes"
-Repository = "https://github.com/SimoneRecchia/claudeEyes"
-Issues = "https://github.com/SimoneRecchia/claudeEyes/issues"
-"Source code" = "https://github.com/SimoneRecchia/claudeEyes"
+Homepage = "https://github.com/SimoneRecchia/claude-eyes"
+Repository = "https://github.com/SimoneRecchia/claude-eyes"
+Issues = "https://github.com/SimoneRecchia/claude-eyes/issues"
+"Source code" = "https://github.com/SimoneRecchia/claude-eyes"
 
 [project.optional-dependencies]
 dev = [
