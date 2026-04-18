@@ -43,6 +43,12 @@ Orchestrates a query against the continuous rolling buffer: pick a time range, s
 
    For "when did I do X" questions, the default `avg` preview from `query_buffer` is usually enough. `compose_timeline_preview` (with `mode="motion"` or different `bucket_s`) currently does **not** address the continuous buffer — it only targets on-demand sessions. If the default preview doesn't surface the moment, rerun `query_buffer` with a narrower `time_range_s` to get tighter bucket coverage.
 
+4.5. **Respect `active_range`.** `query_buffer` attaches `active_range`, `fps_effective`, and `activity_score_mean` just like `stop_recording`.
+
+   - If `active_range` is not null, only scan previews whose `frame_range` intersects `active_range`. For a "what did I do" question, this narrows the scan to the seconds when something actually changed on screen.
+   - If `active_range` is null, the continuous buffer captured a static or near-static interval; tell the user "nothing notable happened in the last N seconds" rather than inventing activity.
+   - `fps_effective < 0.8 × fps_nominal` is less critical here (continuous buffer runs at low fps by default) but still worth flagging to the user.
+
 5. **Synthesize** the subagent's report into a direct answer. Reference specific moments by their age ("~45 s ago you…") rather than file indices.
 
 6. **Do not call `cleanup_session`.** The continuous buffer is not a regular session — it's managed by `start_continuous_buffer` / `stop_continuous_buffer`.

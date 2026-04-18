@@ -99,6 +99,23 @@ Context: Captured at 10 fps during a user click on #submit.
 - **Skipping the scan pass when `frames_count >= 30`.** Sending hundreds of raw frames to the subagent burns tokens for no reason. The scan pass is your coarse map.
 - **Asking the scan subagent for a final answer.** Its job is only to identify interesting bucket indices — the drill pass answers the question.
 
+## Active range (Spec 5)
+
+`stop_recording` attaches `active_range: [first_idx, last_idx] | null`, `fps_effective: float`, and `activity_score_mean: float`. Use them to reduce token spend further and catch I/O bottlenecks.
+
+**Before scan-then-drill:**
+
+1. If `active_range` is not null, filter `frame_paths` to indices in `[first_idx, last_idx]` before scanning. A 400-frame recording with a 30-frame active range drops the scan input by ~90%.
+2. If `active_range` is null, the algorithm found no activity above its adaptive threshold — fall back to the full `frame_paths` as before.
+
+**Check `fps_effective`:**
+
+- If `fps_effective < 0.8 × fps_nominal` (the value you passed to `start_recording`), warn the user: the capture is disk-I/O-bound. Suggest a lower `resolution_scale` or tighter `region` for the next recording.
+
+**Optional: `trim_session`.**
+
+After the analysis, if you want to free disk too (not just ignore dead frames in the subagent pass), call `mcp__claude_eyes__trim_session(session_id)`. This deletes everything outside `active_range` and regenerates previews. Never called automatically — ask yourself whether the dead frames might still be useful before trimming.
+
 ## Related
 
 - Subagent: `.claude/agents/frame-analyzer.md`

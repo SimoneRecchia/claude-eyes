@@ -133,14 +133,15 @@ When you are working on a Chrome page via the `mcp__Claude_in_Chrome__*` tools a
 
 ## Scan-then-drill workflow
 
-`stop_recording` and `query_buffer` auto-attach bucket previews to their responses (one composited image per `bucket_s=1.0` second of recording, `mode="avg"` by default). Use them to reduce token spend on the frame-analyzer subagent.
+`stop_recording` and `query_buffer` auto-attach bucket previews to their responses (one composited image per `bucket_s=1.0` second of recording, `mode="avg"` by default) AND the active-range metadata from Spec 5. Use them to reduce token spend on the frame-analyzer subagent.
 
-Rule of thumb: if a response has `frames_count < 30`, pass raw `frame_paths` directly (previews add no value). Otherwise use two dispatches:
+Rule of thumb: if a response has `frames_count < 30`, pass raw `frame_paths` directly (previews add no value). Otherwise:
 
-1. **Scan.** Send only `previews.items[*].preview_path` to the subagent with the prompt "identify the bucket indices relevant to the question". Get back a short list.
-2. **Drill.** Filter `frame_paths` to the chosen buckets' `frame_range` and dispatch the subagent again with the raw frames and the original question.
+0. **Respect `active_range`.** If the response contains `active_range: [first, last]`, filter `frame_paths` to indices in that range before anything else — dead frames outside the range shouldn't reach the subagent. If `fps_effective < 0.8 × fps_nominal`, warn the user: the capture is disk-I/O-bound.
+1. **Scan.** Send only `previews.items[*].preview_path` (or the subset whose `frame_range` intersects `active_range`) to the subagent with the prompt "identify the bucket indices relevant to the question". Get back a short list.
+2. **Drill.** Filter `frame_paths` to the chosen buckets' `frame_range` (further narrowed by `active_range` if present) and dispatch the subagent again with the raw frames and the original question.
 
-If the default `avg` preview doesn't surface the behaviour, call `compose_timeline_preview(session_id, bucket_s=0.5, mode="max")` or `mode="motion"` and re-scan. Skills (`analyze-screen`, `analyze-page-animation`, `review-recent-activity`) all follow this pattern — reach for them first, they encode the flow.
+If the default `avg` preview doesn't surface the behaviour, call `compose_timeline_preview(session_id, bucket_s=0.5, mode="max")` or `mode="motion"` and re-scan. Optional follow-up: call `trim_session(session_id)` to free disk after the analysis (deletes frames outside `active_range`). Skills (`analyze-screen`, `analyze-page-animation`, `review-recent-activity`) all follow this pattern — reach for them first, they encode the flow.
 
 ## Related files
 

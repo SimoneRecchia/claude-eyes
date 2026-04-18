@@ -1,6 +1,7 @@
 """claudeEyes MCP server — stdio transport via FastMCP."""
 from __future__ import annotations
 
+import shutil
 import sys
 import threading
 import time
@@ -9,6 +10,7 @@ from typing import Any, Literal
 
 from mcp.server.fastmcp import FastMCP
 
+from .activity import compute_fps_effective, detect_active_range
 from .compose import compose_bucketed_preview
 from .config import (
     CONTINUOUS_SESSION_DIR_NAME,
@@ -122,6 +124,14 @@ def stop_recording(session_id: str) -> dict[str, Any]:
         print(f"[claude-eyes] preview composition failed: {exc}", file=sys.stderr)
         bucket_items = []
 
+    try:
+        active_range, score_mean = detect_active_range(Path(session.frames_dir))
+    except Exception as exc:
+        print(f"[claude-eyes] activity detection failed: {exc}", file=sys.stderr)
+        active_range, score_mean = None, 0.0
+
+    fps_effective = compute_fps_effective(frames_count, duration_s)
+
     return {
         "session_id": session_id,
         "frames_count": frames_count,
@@ -142,6 +152,9 @@ def stop_recording(session_id: str) -> dict[str, Any]:
                 for b in bucket_items
             ],
         },
+        "fps_effective": fps_effective,
+        "active_range": list(active_range) if active_range is not None else None,
+        "activity_score_mean": round(score_mean, 3),
     }
 
 
@@ -214,6 +227,79 @@ def compose_timeline_preview(
             }
             for b in items
         ],
+    }
+
+
+@mcp.tool()
+def trim_session(session_id: str) -> dict[str, Any]:
+    """Apply the active-range trim: delete frames outside the detected motion
+    window and regenerate previews. Opt-in and destructive.
+
+    Rejects the continuous-buffer directory name and any session still
+    recording. Returns a structured error if no active range is detected
+    (nothing to trim) or the session is unknown.
+    """
+    if session_id == CONTINUOUS_SESSION_DIR_NAME:
+        return {"error": "trim not supported on continuous buffer"}
+    if session_id in _active:
+        return {"error": "session is still recording"}
+    session = _registry.get(session_id)
+    if session is None:
+        return {"error": f"unknown session {session_id}"}
+
+    session_dir = Path(session.frames_dir)
+    try:
+        active_range, _ = detect_active_range(session_dir)
+    except Exception as exc:
+        print(f"[claude-eyes] activity detection failed: {exc}", file=sys.stderr)
+        return {"error": f"activity detection failed: {exc}"}
+    if active_range is None:
+        return {"error": "no active range detected; nothing to trim"}
+
+    first, last = active_range
+    frames = list_frames_on_disk(session_dir)
+    if not frames:
+        return {"error": "session has no frames"}
+
+    to_delete = [f for f in frames if not (first <= f["index"] <= last)]
+    freed = 0
+    for f in to_delete:
+        p = Path(f["path"])
+        try:
+            freed += p.stat().st_size
+            p.unlink()
+        except OSError:
+            continue
+
+    previews_dir = session_dir / "previews"
+    if previews_dir.is_dir():
+        shutil.rmtree(previews_dir, ignore_errors=True)
+
+    try:
+        new_previews = compose_bucketed_preview(session_dir, bucket_s=1.0, mode="avg")
+    except Exception as exc:
+        print(f"[claude-eyes] preview re-composition failed: {exc}", file=sys.stderr)
+        new_previews = []
+
+    return {
+        "session_id": session_id,
+        "kept_frames": len(frames) - len(to_delete),
+        "deleted_frames": len(to_delete),
+        "freed_bytes": freed,
+        "previews": {
+            "mode": "avg",
+            "bucket_s": 1.0,
+            "items": [
+                {
+                    "bucket_index": b.bucket_index,
+                    "preview_path": b.preview_path,
+                    "frame_range": list(b.frame_range),
+                    "ts_start_ms": b.ts_start_ms,
+                    "ts_end_ms": b.ts_end_ms,
+                }
+                for b in new_previews
+            ],
+        },
     }
 
 
@@ -326,6 +412,31 @@ def query_buffer(
             if b.ts_end_ms >= oldest and b.ts_start_ms <= now_ms
         ]
 
+        try:
+            indices = {f["index"] for f in all_frames}
+            active_range, score_mean = detect_active_range(
+                handle.session_dir, include_frame_indices=indices
+            )
+        except Exception as exc:
+            print(f"[claude-eyes] activity detection failed: {exc}", file=sys.stderr)
+            active_range, score_mean = None, 0.0
+
+        # detect_active_range returns positions within the filtered all_frames
+        # list. Translate to absolute frame indices so the range lives in the
+        # same coordinate system as preview.frame_range (which uses the
+        # absolute index baked into frame filenames).
+        if active_range is not None and all_frames:
+            first_pos, last_pos = active_range
+            active_range_abs: list[int] | None = [
+                all_frames[first_pos]["index"],
+                all_frames[last_pos]["index"],
+            ]
+        else:
+            active_range_abs = None
+
+        effective_range_s = max(0.001, (now_ms - oldest) / 1000)
+        fps_effective = compute_fps_effective(len(all_frames), effective_range_s)
+
         result: dict[str, Any] = {
             "frames": enriched,
             "total_in_range": len(all_frames),
@@ -345,6 +456,9 @@ def query_buffer(
                     for b in filtered_items
                 ],
             },
+            "fps_effective": fps_effective,
+            "active_range": active_range_abs,
+            "activity_score_mean": round(score_mean, 3),
         }
         if clamped:
             effective_s = max(0, (now_ms - buffer_oldest) // 1000)
