@@ -1,16 +1,16 @@
 {
-  "name": "claudeEyes",
+  "name": "claude-eyes",
   "owner": {
     "name": "Simone Recchia",
     "url": "https://github.com/SimoneRecchia"
   },
   "metadata": {
-    "description": "Single-plugin marketplace for claudeEyes — visual awareness over time.",
+    "description": "Single-plugin marketplace for claude-eyes — visual awareness over time.",
     "version": "0.5.0"
   },
   "plugins": [
     {
-      "name": "claudeEyes",
+      "name": "claude-eyes",
       "source": "./",
       "description": "Screen recording + vision subagent MCP server for Claude Code. Analyse animations, UI transitions, and time-based visual behaviour."
     }

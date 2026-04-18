@@ -152,11 +152,13 @@ cleanup.
 
 ```
 /plugin marketplace add SimoneRecchia/claudeEyes
-/plugin install claudeEyes@claudeEyes
+/plugin install claude-eyes@claude-eyes
 ```
 
 That's it. Claude Code downloads the plugin, registers the MCP server,
-loads the three skills, the vision subagent, and the hooks.
+loads the three skills (namespaced as `/claude-eyes:analyze-screen`,
+`/claude-eyes:analyze-page-animation`, `/claude-eyes:review-recent-activity`),
+the vision subagent, and the hooks.
 
 **Prerequisite:** [`uv`](https://docs.astral.sh/uv/) must be on your
 `PATH`. The plugin launches its Python MCP server via `uvx`, which
