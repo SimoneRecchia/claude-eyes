@@ -146,15 +146,48 @@ cleanup.
 - A Claude client that speaks MCP (Claude Code, Claude Desktop, or any
   stdio-capable harness)
 
-## Install (dev)
+## Install
+
+### As a Claude Code plugin (recommended — one command)
+
+```
+/plugin marketplace add SimoneRecchia/claudeEyes
+/plugin install claudeEyes@claudeEyes
+```
+
+That's it. Claude Code downloads the plugin, registers the MCP server,
+loads the three skills, the vision subagent, and the hooks.
+
+**Prerequisite:** [`uv`](https://docs.astral.sh/uv/) must be on your
+`PATH`. The plugin launches its Python MCP server via `uvx`, which
+auto-installs Python 3.13 and the project's dependencies in an
+isolated environment on first run — no manual `pip install`, no venv.
+
+If `uv` is missing when you start a session, a hook will tell you how
+to install it:
 
 ```bash
+# macOS / Linux
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Windows (PowerShell)
+powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
+```
+
+### From source (for contributors)
+
+```bash
+git clone https://github.com/SimoneRecchia/claudeEyes
+cd claudeEyes
+python -m venv .venv
+.venv/Scripts/activate   # or `source .venv/bin/activate` on macOS/Linux
 pip install -e .[dev]
 ```
 
-The repo ships a working `.mcp.json` that registers the server as
-`claude_eyes` under a local `.venv`. Adjust the command path for your
-environment.
+The repo ships a working `.mcp.json` at the root that registers the
+server using the local `.venv`. Open the repo in Claude Code and the
+MCP server, skills, agents, and hooks all load from the local tree —
+no plugin install needed for development.
 
 ---
 
