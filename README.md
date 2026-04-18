@@ -21,11 +21,13 @@ See [CLAUDE.md](CLAUDE.md) for how Claude uses the system.
 
 ## Status
 
-Foundation shipped: the Python MCP server, `frame-analyzer` subagent, `analyze-screen` skill, and hooks are all in place. 35 tests pass; real-screen smoke verified. `include_cursor` config is accepted but cursor capture itself will be implemented in a follow-up spec (a warning is logged on startup if set to `true`).
+All three planned specs shipped. 68 tests pass; mypy and ruff clean; real-screen smoke verified.
 
-Planned next specs:
-- **Continuous mode** — rolling buffer + frame optimization + "what did I do" skill.
-- **Chrome extension** — DOM selector → bbox translation, animation triggers.
+- **Foundation** (Spec 1) — Python MCP server, 4 on-demand tools (`start_recording` / `stop_recording` / `list_frames` / `cleanup_session`), `frame-analyzer` subagent, `analyze-screen` skill, hooks.
+- **Continuous mode** (Spec 2) — rolling buffer with age + disk-cap pruning, 3 tools (`start_continuous_buffer` / `stop_continuous_buffer` / `query_buffer`), uniform-in-time sampling, privacy-guardrail hook, `review-recent-activity` skill.
+- **Claude-in-Chrome integration** (Spec 3) — `region_dpr` param on `start_recording`, `analyze-page-animation` skill with six ready-to-use patterns + fallback decision tree, CLAUDE.md disambiguation.
+
+Known limitation: `CLAUDE_EYES_INCLUDE_CURSOR=true` is accepted but cursor capture is still a no-op (warning logged on startup).
 
 ## Requirements
 
