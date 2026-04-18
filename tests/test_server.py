@@ -260,6 +260,24 @@ def test_continuous_and_on_demand_coexist(patched_server, tmp_path: Path) -> Non
     patched_server.cleanup_session(sid)
 
 
+def test_query_buffer_includes_previews_in_range(patched_server) -> None:
+    patched_server.start_continuous_buffer(fps=10)
+    time.sleep(1.3)
+    result = patched_server.query_buffer(time_range_s=5, max_frames=5)
+
+    assert "previews" in result
+    assert result["previews"]["mode"] == "avg"
+    assert result["previews"]["bucket_s"] == 1.0
+    items = result["previews"]["items"]
+    assert len(items) >= 1
+    for it in items:
+        assert Path(it["preview_path"]).exists()
+        assert it["ts_start_ms"] <= 5000
+        assert it["ts_end_ms"] >= 0
+
+    patched_server.stop_continuous_buffer()
+
+
 def test_stop_recording_attaches_previews(patched_server, tmp_path: Path) -> None:
     start = patched_server.start_recording(fps=10, resolution_scale=1.0, region=None)
     sid = start["session_id"]
