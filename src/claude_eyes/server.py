@@ -5,7 +5,7 @@ import sys
 import threading
 import time
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from mcp.server.fastmcp import FastMCP
 
@@ -168,6 +168,53 @@ def cleanup_session(session_id: str) -> dict[str, Any]:
     freed = cleanup_session_dir(Path(session.frames_dir))
     _registry.remove(session_id)
     return {"deleted": True, "freed_bytes": freed}
+
+
+@mcp.tool()
+def compose_timeline_preview(
+    session_id: str,
+    bucket_s: float = 1.0,
+    mode: Literal["avg", "max", "motion"] = "avg",
+) -> dict[str, Any]:
+    """Recompose the bucket previews of an existing on-demand session with
+    different parameters. Writes preview files under
+    ``sessions/<session_id>/previews/`` and returns their metadata.
+
+    Continuous buffer sessions are not addressable by this tool; use
+    ``query_buffer`` instead to get preview metadata for the rolling buffer.
+    """
+    session = _registry.get(session_id)
+    if session is None:
+        return {"error": f"unknown session {session_id}"}
+
+    try:
+        items = compose_bucketed_preview(
+            Path(session.frames_dir), bucket_s=bucket_s, mode=mode
+        )
+    except Exception as exc:
+        return {"error": f"compose failed: {exc}"}
+
+    if not items:
+        return {"error": "session has no frames"}
+
+    effective_bucket_s = max(0.1, bucket_s)
+    effective_mode = mode if mode in ("avg", "max", "motion") else "avg"
+
+    return {
+        "session_id": session_id,
+        "mode": effective_mode,
+        "bucket_s": effective_bucket_s,
+        "items": [
+            {
+                "bucket_index": b.bucket_index,
+                "preview_path": b.preview_path,
+                "frame_range": list(b.frame_range),
+                "ts_start_ms": b.ts_start_ms,
+                "ts_end_ms": b.ts_end_ms,
+            }
+            for b in items
+        ],
+    }
 
 
 @mcp.tool()
