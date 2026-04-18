@@ -1,4 +1,4 @@
-# Contributing to claudeEyes
+# Contributing to claude-eyes
 
 Thanks for your interest. This document captures the conventions the
 project has kept across its first five specs so a new contributor can land

@@ -21,7 +21,7 @@ current tool surface makes hard? -->
 
 ## Scope check
 
-<!-- Does this feel like it needs a spec (claudeEyes has a spec-driven
+<!-- Does this feel like it needs a spec (claude-eyes has a spec-driven
 workflow)? Any guess at which module(s) it would touch — server.py,
 activity.py, a new skill, documentation only? -->
 

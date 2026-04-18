@@ -1,4 +1,4 @@
-"""Shared pytest fixtures for claudeEyes."""
+"""Shared pytest fixtures for claude-eyes."""
 from __future__ import annotations
 
 from pathlib import Path

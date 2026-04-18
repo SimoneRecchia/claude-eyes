@@ -5,7 +5,7 @@ description: Use when the user is on a Chrome page (via Claude-in-Chrome) and as
 
 # analyze-page-animation
 
-Coordinates Claude-in-Chrome (DOM, navigation, input) with claudeEyes (video capture) so a time-based visual behaviour on a Chrome page is recorded exactly around the action that produces it — no wasted frames before the trigger, no frames after the animation ends.
+Coordinates Claude-in-Chrome (DOM, navigation, input) with claude-eyes (video capture) so a time-based visual behaviour on a Chrome page is recorded exactly around the action that produces it — no wasted frames before the trigger, no frames after the animation ends.
 
 ## When to use
 
