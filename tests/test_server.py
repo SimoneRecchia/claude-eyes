@@ -388,3 +388,74 @@ def test_stop_recording_attaches_fps_effective_and_active_range(
     assert isinstance(result["activity_score_mean"], float)
 
     patched_server.cleanup_session(sid)
+
+
+def test_trim_session_removes_dead_frames_and_regenerates_previews(
+    patched_server, tmp_path: Path
+) -> None:
+    # Record at a moderate pace. The fake MSS produces identical frames,
+    # so active_range will typically be None — to force a trim-able
+    # scenario, we manually swap a couple of frames on disk after stop.
+    start = patched_server.start_recording(fps=20, resolution_scale=1.0, region=None)
+    sid = start["session_id"]
+    time.sleep(0.6)
+    patched_server.stop_recording(sid)
+
+    from PIL import Image as _I
+
+    sess_dir = Path(patched_server._registry.get(sid).frames_dir)
+    frames_on_disk = sorted(sess_dir.glob("frame_*.jpg"))
+    assert len(frames_on_disk) >= 6
+    red = _I.new("RGB", (8, 8), (255, 0, 0))
+    red.save(frames_on_disk[5], "JPEG", quality=85)
+    red.save(frames_on_disk[6], "JPEG", quality=85)
+
+    result = patched_server.trim_session(sid)
+
+    assert "kept_frames" in result
+    assert "deleted_frames" in result
+    assert "freed_bytes" in result
+    assert "previews" in result
+    assert result["kept_frames"] >= 2
+    assert result["deleted_frames"] > 0
+    assert (sess_dir / "previews").is_dir()
+
+    patched_server.cleanup_session(sid)
+
+
+def test_trim_session_rejects_active_session(patched_server) -> None:
+    start = patched_server.start_recording(fps=10, resolution_scale=1.0, region=None)
+    sid = start["session_id"]
+    result = patched_server.trim_session(sid)
+    assert "error" in result
+    assert "still recording" in result["error"]
+
+    patched_server.stop_recording(sid)
+    patched_server.cleanup_session(sid)
+
+
+def test_trim_session_rejects_continuous_session_id(patched_server) -> None:
+    result = patched_server.trim_session("_continuous")
+    assert "error" in result
+    assert "continuous buffer" in result["error"]
+
+
+def test_trim_session_unknown_session_returns_error(patched_server) -> None:
+    result = patched_server.trim_session("sess_ghost")
+    assert "error" in result
+    assert "unknown session" in result["error"]
+
+
+def test_trim_session_all_static_returns_no_range_error(
+    patched_server, tmp_path: Path
+) -> None:
+    start = patched_server.start_recording(fps=10, resolution_scale=1.0, region=None)
+    sid = start["session_id"]
+    time.sleep(0.3)
+    patched_server.stop_recording(sid)
+
+    result = patched_server.trim_session(sid)
+    assert "error" in result
+    assert "no active range" in result["error"]
+
+    patched_server.cleanup_session(sid)

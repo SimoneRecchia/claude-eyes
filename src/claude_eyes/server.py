@@ -1,6 +1,7 @@
 """claudeEyes MCP server — stdio transport via FastMCP."""
 from __future__ import annotations
 
+import shutil
 import sys
 import threading
 import time
@@ -226,6 +227,75 @@ def compose_timeline_preview(
             }
             for b in items
         ],
+    }
+
+
+@mcp.tool()
+def trim_session(session_id: str) -> dict[str, Any]:
+    """Apply the active-range trim: delete frames outside the detected motion
+    window and regenerate previews. Opt-in and destructive.
+
+    Rejects the continuous-buffer directory name and any session still
+    recording. Returns a structured error if no active range is detected
+    (nothing to trim) or the session is unknown.
+    """
+    if session_id == CONTINUOUS_SESSION_DIR_NAME:
+        return {"error": "trim not supported on continuous buffer"}
+    if session_id in _active:
+        return {"error": "session is still recording"}
+    session = _registry.get(session_id)
+    if session is None:
+        return {"error": f"unknown session {session_id}"}
+
+    session_dir = Path(session.frames_dir)
+    active_range, _ = detect_active_range(session_dir)
+    if active_range is None:
+        return {"error": "no active range detected; nothing to trim"}
+
+    first, last = active_range
+    frames = list_frames_on_disk(session_dir)
+    if not frames:
+        return {"error": "session has no frames"}
+
+    to_delete = [f for f in frames if not (first <= f["index"] <= last)]
+    freed = 0
+    for f in to_delete:
+        p = Path(f["path"])
+        try:
+            freed += p.stat().st_size
+            p.unlink()
+        except OSError:
+            continue
+
+    previews_dir = session_dir / "previews"
+    if previews_dir.is_dir():
+        shutil.rmtree(previews_dir, ignore_errors=True)
+
+    try:
+        new_previews = compose_bucketed_preview(session_dir, bucket_s=1.0, mode="avg")
+    except Exception as exc:
+        print(f"[claude-eyes] preview re-composition failed: {exc}", file=sys.stderr)
+        new_previews = []
+
+    return {
+        "session_id": session_id,
+        "kept_frames": len(frames) - len(to_delete),
+        "deleted_frames": len(to_delete),
+        "freed_bytes": freed,
+        "previews": {
+            "mode": "avg",
+            "bucket_s": 1.0,
+            "items": [
+                {
+                    "bucket_index": b.bucket_index,
+                    "preview_path": b.preview_path,
+                    "frame_range": list(b.frame_range),
+                    "ts_start_ms": b.ts_start_ms,
+                    "ts_end_ms": b.ts_end_ms,
+                }
+                for b in new_previews
+            ],
+        },
     }
 
 
