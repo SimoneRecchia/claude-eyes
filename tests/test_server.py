@@ -476,3 +476,67 @@ def test_query_buffer_includes_fps_effective_and_active_range(patched_server) ->
     )
 
     patched_server.stop_continuous_buffer()
+
+
+def test_query_buffer_active_range_uses_absolute_frame_indices(
+    patched_server, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Regression: positions returned by detect_active_range are mapped to
+    absolute frame indices. Otherwise they would disagree with
+    preview.frame_range (which uses absolute indices from filenames)."""
+    patched_server.start_continuous_buffer(fps=10)
+    time.sleep(0.6)
+
+    # Force detect_active_range to claim "positions 0 and N-1" are the active
+    # boundary. The server must translate those to whatever absolute indices
+    # the frames actually carry.
+    def fake_detect(session_dir, *, include_frame_indices=None):
+        filtered_indices = sorted(include_frame_indices or [])
+        if len(filtered_indices) < 2:
+            return None, 0.0
+        # Return positions within the filtered list (the contract).
+        return (0, len(filtered_indices) - 1), 42.0
+
+    monkeypatch.setattr(patched_server, "detect_active_range", fake_detect)
+
+    result = patched_server.query_buffer(time_range_s=5, max_frames=10)
+
+    assert result["active_range"] is not None
+    first_abs, last_abs = result["active_range"]
+    frame_indices = [f["index"] for f in result["frames"]]
+    # Translation must map to real absolute indices, not positions.
+    all_abs = sorted({f["index"] for f in result["frames"]})
+    # The preview.frame_range space is the same as frame["index"] space; both
+    # must contain the translated boundaries.
+    assert first_abs == min(all_abs)
+    assert last_abs == max(all_abs)
+    # Sanity: translated indices are members of the returned frame set (or
+    # broader, since detect_active_range sees every frame in range, not only
+    # the sampled ones — but min/max of the returned list is a safe subset).
+    assert first_abs in frame_indices or first_abs <= min(frame_indices)
+    assert last_abs in frame_indices or last_abs >= max(frame_indices)
+
+    patched_server.stop_continuous_buffer()
+
+
+def test_trim_session_returns_error_when_activity_detection_raises(
+    patched_server, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Regression: trim_session must honor the structured-error response
+    contract even if detect_active_range raises on a corrupted frame."""
+    start = patched_server.start_recording(fps=10, resolution_scale=1.0, region=None)
+    sid = start["session_id"]
+    time.sleep(0.3)
+    patched_server.stop_recording(sid)
+
+    def boom(session_dir, *, include_frame_indices=None):
+        raise OSError("simulated corrupted frame")
+
+    monkeypatch.setattr(patched_server, "detect_active_range", boom)
+
+    result = patched_server.trim_session(sid)
+
+    assert "error" in result
+    assert "activity detection failed" in result["error"]
+
+    patched_server.cleanup_session(sid)

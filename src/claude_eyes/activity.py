@@ -14,6 +14,7 @@ All functions are pure IO + CPU. No locks, no shared state.
 """
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -59,13 +60,27 @@ def _compute_scores(frames: list[FrameInfo]) -> list[float]:
     peak memory is bounded to two thumbnails regardless of session length.
     Chunking is logical only (no cross-chunk boundary effects) because we
     keep a running ``prev_thumb`` reference.
+
+    A frame that fails to load (missing file, truncated JPEG, permission
+    error) is skipped with a stderr warning: both the pair leading into it
+    and the pair leading out of it are dropped, and the running previous
+    thumbnail is cleared so the next valid frame starts a fresh window.
     """
     scores: list[float] = []
     prev_thumb: np.ndarray | None = None
     for chunk_start in range(0, len(frames), _CHUNK_SIZE):
         chunk = frames[chunk_start : chunk_start + _CHUNK_SIZE]
         for f in chunk:
-            curr_thumb = _downscale_frame(Path(f["path"]))
+            try:
+                curr_thumb = _downscale_frame(Path(f["path"]))
+            except Exception as exc:
+                print(
+                    f"[claude-eyes] activity: skipping unreadable frame "
+                    f"{f['path']}: {exc}",
+                    file=sys.stderr,
+                )
+                prev_thumb = None
+                continue
             if prev_thumb is not None:
                 scores.append(score_frame_motion(prev_thumb, curr_thumb))
             prev_thumb = curr_thumb
