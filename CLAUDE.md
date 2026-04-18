@@ -36,12 +36,18 @@ You choose these based on the task. Minimize for speed/disk; maximize only when 
 
 ### `fps` (frames per second, default 3)
 
-| Task | Recommended fps |
+Claude picks fps per task. Concrete guidance:
+
+| Task | Rec. fps |
 |---|---|
-| Slow UI transitions, layout changes | 2–3 |
-| Normal animations | 5–8 |
-| Fluid animations, interactions | 10–15 |
-| Micro-stuttering / frame-drop debug | 20–30 |
+| OS window / menu animation (~200 ms) | 25–30 |
+| Web CSS transition (~300 ms) | 20–25 |
+| Fluid 1–2 s animation | 15–20 |
+| UI walkthrough, no smoothness judgement | 5–8 |
+| Long-range "what did I do" recall | 2–3 |
+| Micro-stutter / frame-drop debug | 30 (max) |
+
+Hard ceiling: **60**. Above that, see the hard rule above.
 
 ### `resolution_scale` (0.1–1.0, default 1.0)
 
@@ -79,6 +85,7 @@ The `analyze-screen` skill orchestrates this end-to-end. Follow it:
 - **Never record without a user-visible reason.** If the user didn't ask to understand something visual, don't start a recording.
 - **Never raise `fps` or `resolution_scale` "just in case."** Higher values = more tokens for the subagent and more disk. Match the task.
 - **Never dispatch analysis directly from the main agent.** Always go through the `frame-analyzer` subagent. Main agent = orchestration, subagent = vision.
+- **Never set `fps > 60`.** Monitor refresh is 60 Hz; higher values double disk and add zero visual information.
 
 ## Continuous mode (rolling buffer)
 
@@ -123,6 +130,17 @@ When you are working on a Chrome page via the `mcp__Claude_in_Chrome__*` tools a
 | `analyze-screen` | Desktop / OS UI / any app | User asks to see a time-based behaviour outside a browser. |
 | `analyze-page-animation` | Chrome page via Claude-in-Chrome | User asks about a specific animation/interaction on a page. |
 | `review-recent-activity` | Anywhere, user started the rolling buffer | "Cosa ho fatto", "cosa è successo negli ultimi minuti". |
+
+## Scan-then-drill workflow
+
+`stop_recording` and `query_buffer` auto-attach bucket previews to their responses (one composited image per `bucket_s=1.0` second of recording, `mode="avg"` by default). Use them to reduce token spend on the frame-analyzer subagent.
+
+Rule of thumb: if a response has `frames_count < 30`, pass raw `frame_paths` directly (previews add no value). Otherwise use two dispatches:
+
+1. **Scan.** Send only `previews.items[*].preview_path` to the subagent with the prompt "identify the bucket indices relevant to the question". Get back a short list.
+2. **Drill.** Filter `frame_paths` to the chosen buckets' `frame_range` and dispatch the subagent again with the raw frames and the original question.
+
+If the default `avg` preview doesn't surface the behaviour, call `compose_timeline_preview(session_id, bucket_s=0.5, mode="max")` or `mode="motion"` and re-scan. Skills (`analyze-screen`, `analyze-page-animation`, `review-recent-activity`) all follow this pattern — reach for them first, they encode the flow.
 
 ## Related files
 

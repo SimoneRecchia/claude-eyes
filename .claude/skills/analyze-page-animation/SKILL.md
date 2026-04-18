@@ -256,6 +256,17 @@ Never exceed 30 fps (mss I/O gets lossy) and never go below 3 fps for animation 
 | bbox math looks wrong (negative or > monitor size) | Pass `region=None` to `start_recording` (full-screen capture); the subagent will focus based on the question. |
 | `start_recording` returns `{"error": ...}` | Surface it to the user, do not attempt the trigger. |
 
+## Scan-then-drill when frames exceed 30
+
+`stop_recording` auto-attaches `previews` to its response. Reach for scan-then-drill when `frames_count >= 30`; otherwise pass raw frames directly as before.
+
+1. **Scan pass.** Dispatch `frame-analyzer` with only the `previews.items[*].preview_path`. Prompt: "identify the bucket index containing the animation described". Return a `bucket_index`.
+2. **Drill pass.** Build the raw `frame_paths` subset whose indices fall inside the chosen bucket's `frame_range`. Dispatch `frame-analyzer` again with that subset and the user's original question.
+
+For a tight Chrome animation the recording is often shorter than a bucket (≤ 1 s) and may land in `frames_count < 30` — in that case skip the scan pass entirely, it adds nothing.
+
+If the default `avg` preview doesn't surface the animation clearly (common for subtle colour transitions on a light background), call `compose_timeline_preview(session_id, mode="max")` and re-scan with the new previews.
+
 ## Common mistakes to avoid
 
 - **Using this skill for a single-state screenshot.** Use Claude-in-Chrome's screenshot tool for that.

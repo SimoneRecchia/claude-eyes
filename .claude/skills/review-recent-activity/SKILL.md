@@ -35,9 +35,13 @@ Orchestrates a query against the continuous rolling buffer: pick a time range, s
    - If `frames` is empty: tell the user nothing was captured in the requested range.
    - If `warning` is present: tell the user the range was clamped to the actual buffer age.
 
-4. **Dispatch `frame-analyzer`** via the `Task` tool:
-   - `subagent_type: "frame-analyzer"`
-   - Prompt includes the frame paths (one per line, in order), the user's question, and the `age_s` of the oldest/newest frames so the subagent has temporal context.
+4. **Scan then drill** — the `query_buffer` response already contains `previews` for the queried range.
+
+   a. **Scan pass.** Dispatch `frame-analyzer` with `previews.items[*].preview_path` only. Prompt it to identify which bucket(s) contain activity relevant to the user's question. Return the bucket indices.
+
+   b. **Drill pass.** For each chosen bucket, include only the raw frames from `frames` whose `timestamp_ms` falls inside that bucket's `[ts_start_ms, ts_end_ms]`. Dispatch `frame-analyzer` with that narrower list and the original question. Answer from the second report.
+
+   For "when did I do X" questions, the default `avg` preview from `query_buffer` is usually enough. `compose_timeline_preview` (with `mode="motion"` or different `bucket_s`) currently does **not** address the continuous buffer — it only targets on-demand sessions. If the default preview doesn't surface the moment, rerun `query_buffer` with a narrower `time_range_s` to get tighter bucket coverage.
 
 5. **Synthesize** the subagent's report into a direct answer. Reference specific moments by their age ("~45 s ago you…") rather than file indices.
 
