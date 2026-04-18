@@ -235,16 +235,28 @@ When no pattern matches (canvas, custom `requestAnimationFrame`, unknown JS fram
 
 ## FPS heuristics
 
-Choose based on **expected animation duration**, not overall recording length:
+Choose based on **expected animation duration** (align with the `CLAUDE.md` decision tree; both must agree):
 
-| Expected duration | FPS |
-|---|---|
-| < 1 s  | 25–30 |
-| 1–3 s  | 15–20 |
-| 3–8 s  | 8–12  |
-| > 8 s  | 5–8   |
+| Expected animation duration | `fps` | Category |
+|---|---|---|
+| < 1 s (snap, flash, click feedback) | 25–30 | timing |
+| 1–3 s (normal CSS transition) | 20–25 | timing |
+| 3–8 s (fluid UI, multi-step) | 15–20 | timing |
+| 8+ s (page reveal, long form) | 10–12 | timing |
 
-Never exceed 30 fps (mss I/O gets lossy) and never go below 3 fps for animation analysis.
+If the question is about a trail or cursor path on a Chrome page (rare — Chrome usually drives the action via `computer` or `javascript_tool`), follow the motion tier from `CLAUDE.md`: fps 25–30.
+
+Do NOT drop below 10 fps for animation analysis. Never exceed 30 fps (mss I/O gets lossy).
+
+## Retry protocol
+
+If the subagent's answer hedges or conflicts with the user's description, retry ONCE using the tactic priority in `CLAUDE.md § Retry protocol`. For Chrome contexts specifically:
+
+- First retry tactic is usually to **narrow `region`** to the element's bounding box (DPR-converted from `getBoundingClientRect()`) instead of re-recording the whole tab.
+- If `fps_effective < 50% × fps_nominal`, lower `resolution_scale` to 0.5 before raising fps.
+- For animations on a page that's also running heavy JS (React dev server, live-reload), close DevTools and unrelated tabs before re-recording.
+
+Cleanup the first session before starting the second.
 
 ## Error handling
 

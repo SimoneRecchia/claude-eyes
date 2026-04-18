@@ -30,40 +30,44 @@ Invoke screen recording when the user asks you to understand something that **ch
 
 AI analysis is **not** in the MCP — it happens by dispatching the `frame-analyzer` subagent via the `Task` tool.
 
-## Parameter heuristics (for `start_recording`)
+## Decision tree: how to pick the right approach
 
-You choose these based on the task. Minimize for speed/disk; maximize only when needed.
+Claude makes three decisions in sequence before starting any recording:
 
-### `fps` (frames per second, default 3)
+### 1. Categorize the question
 
-Claude picks fps per task. Concrete guidance:
+| Category | Examples | Drill mandatory? | fps target |
+|---|---|---|---|
+| **Motion / gesture / trail** | "che forma sto facendo", "traccia il percorso", "cursor path" | **yes** | 25–30 |
+| **Timing / transition** | "is it smooth", "when does X appear", "flicker" | **yes** | 20–25 |
+| **Existence / layout** | "cosa c'era sul menu", "which buttons are visible" | no | 10–15 |
+| **Long recall** | "cosa ho fatto negli ultimi 5 minuti" | no | 2–3 (buffer OK) |
 
-| Task | Rec. fps |
-|---|---|
-| OS window / menu animation (~200 ms) | 25–30 |
-| Web CSS transition (~300 ms) | 20–25 |
-| Fluid 1–2 s animation | 15–20 |
-| UI walkthrough, no smoothness judgement | 5–8 |
-| Long-range "what did I do" recall | 2–3 |
-| Micro-stutter / frame-drop debug | 30 (max) |
+The category drives the next two decisions. Motion and timing questions require the drill pass — the preview is never a valid final answer for them.
 
-Hard ceiling: **60**. Above that, see the hard rule above.
+### 2. Pick `fps` and `resolution_scale`
 
-### `resolution_scale` (0.1–1.0, default 1.0)
+| Situation | `fps` | `resolution_scale` |
+|---|---|---|
+| Mouse gesture / drag / cursor path | 25–30 | 0.75 |
+| OS animation / Chrome transition | 20–25 | 1.0 |
+| Normal UI animation | 15–20 | 1.0 |
+| UI walkthrough / multi-step | 10 | 0.75 |
+| **Default (no clear hint)** | **10** | **0.75** |
+| Layout-only check | 5 | 0.5 |
+| Long recall / "what did I do" | 2–3 | 0.75 |
 
-| Task | Recommended scale |
-|---|---|
-| Pixel-perfect detail, small text, fine glitches | 1.0 |
-| Layout/color/shape analysis | 0.5 |
-| Movement tracking, gross behavior | 0.25 |
+Hard ceiling: **60 fps** (monitor refresh rate; above that is wasted disk).
 
-### `region` (optional `(x, y, width, height)`)
+### 3. Pick `region`
 
-Prefer a tight bbox whenever the task is localized (a button, a widget, a card). Full screen wastes disk and dilutes the subagent's attention. If the user describes a visible area, translate it to coordinates.
+- For localized UI (a button, a widget, a menu): tight bounding box. Saves disk and focuses the subagent.
+- For multi-monitor setups (`CLAUDE_EYES_MONITOR=0`, i.e. virtual screen): if the action is on one monitor, narrow `region` to that monitor's bounds. Full virtual-screen captures on multi-monitor hit I/O ceilings fast.
+- If unsure, ask the user "which monitor is the action on?" once before starting the recording.
 
-### `session_name` (optional)
+### Session name
 
-Human-readable label for your own tracking. Defaults to auto-generated.
+`session_name` is an optional human-readable label for your own tracking. Defaults to auto-generated.
 
 ## Standard workflow
 
@@ -86,6 +90,9 @@ The `analyze-screen` skill orchestrates this end-to-end. Follow it:
 - **Never raise `fps` or `resolution_scale` "just in case."** Higher values = more tokens for the subagent and more disk. Match the task.
 - **Never dispatch analysis directly from the main agent.** Always go through the `frame-analyzer` subagent. Main agent = orchestration, subagent = vision.
 - **Never set `fps > 60`.** Monitor refresh is 60 Hz; higher values double disk and add zero visual information.
+- **Preview images are a SCAN tool, never an ANSWER.** After the scan pass identifies relevant buckets, the drill pass is MANDATORY for motion-, timing-, or trail-category questions. Answering from a composited preview is a bug.
+- **For motion- or timing-category questions, never rely on the 2 fps continuous buffer.** Start an on-demand recording at `fps >= 20` — the buffer coexists with on-demand recordings, no need to stop it.
+- **Under I/O bottleneck (`fps_effective < 50% × fps_nominal`), the retry MUST lower `resolution_scale` or narrow `region` before raising `fps`.** Raising fps when I/O is the bottleneck is wasted compute.
 
 ## Continuous mode (rolling buffer)
 
@@ -142,6 +149,31 @@ Rule of thumb: if a response has `frames_count < 30`, pass raw `frame_paths` dir
 2. **Drill.** Filter `frame_paths` to the chosen buckets' `frame_range` (further narrowed by `active_range` if present) and dispatch the subagent again with the raw frames and the original question.
 
 If the default `avg` preview doesn't surface the behaviour, call `compose_timeline_preview(session_id, bucket_s=0.5, mode="max")` or `mode="motion"` and re-scan. Optional follow-up: call `trim_session(session_id)` to free disk after the analysis (deletes frames outside `active_range`). Skills (`analyze-screen`, `analyze-page-animation`, `review-recent-activity`) all follow this pattern — reach for them first, they encode the flow.
+
+## Retry protocol
+
+If the first analysis attempt fails or hedges, retry ONCE with different parameters. Do not re-run the same capture with the same settings.
+
+**Retry triggers** (retry if any apply):
+
+- Subagent response contains hedge words: "I think", "probably", "could be", "hard to tell", "perhaps".
+- Response is shorter than ~20 words for a qualitative question.
+- Response contradicts a specific hint the user provided.
+- User explicitly says "wrong" / "riprova" / "no, try again".
+
+**Retry tactics** (apply in this priority order, pick the first that fits):
+
+1. **I/O-first** (requires new recording). If `fps_effective < 50% × fps_nominal`, lower `resolution_scale` to 0.5 OR narrow `region` to a single monitor before touching fps. Raising fps under I/O bottleneck is wasted.
+2. **Preview mode** (reuses current session — cheap). For motion/trail with a vague answer, call `compose_timeline_preview(mode="max")` on the existing session and re-run the drill pass. For timing, use `mode="motion"`.
+3. **Drill scope** (reuses current session — cheap). If the first drill used the whole `active_range`, narrow to a single bucket and drill that alone (higher frame density on the moment that matters).
+4. **fps bump** (requires new recording). Only after 1–3 have been applied, bump `fps` by +5 (cap at 30). If the first attempt was already at the category ceiling (30 fps for motion), skip this tactic — I/O or preview-mode tactics are the real fix; surface the failure to the user if nothing else helped.
+
+**Session lifecycle during retry:**
+
+- **Cheap retries (tactics 2 and 3)** operate on the EXISTING session. Do them BEFORE calling `cleanup_session` — the session files must still exist.
+- **Expensive retries (tactics 1 and 4)** require a new recording. Call `cleanup_session` on the current session first, then start a fresh one.
+
+If the second attempt also fails, tell the user what you tried and ask for a specific hint — do not loop.
 
 ## Related files
 
