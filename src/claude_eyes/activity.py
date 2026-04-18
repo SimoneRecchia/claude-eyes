@@ -1,0 +1,145 @@
+"""Post-capture activity detection and fps-effective reporting.
+
+Given a completed recording (a directory of frame JPEGs), this module:
+
+- Scores motion between consecutive frames with mean absolute pixel
+  difference on 128x72 thumbnails (cheap, deterministic).
+- Computes an adaptive threshold per session so a scene with a live
+  video background (high baseline) and one with a static desktop (low
+  baseline) are both handled without magic numbers.
+- Returns the leading-and-trailing-trimmed index range where activity
+  was detected, plus the mean motion score for diagnostics.
+
+All functions are pure IO + CPU. No locks, no shared state.
+"""
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+import numpy as np
+from PIL import Image
+
+from .storage import FrameInfo, list_frames
+
+_THUMB_SIZE = (128, 72)            # (W, H) for PIL; 16:9; ~9216 pixels
+_CHUNK_SIZE = 500                  # frames per batch (memory cap)
+
+
+def score_frame_motion(prev: np.ndarray, curr: np.ndarray) -> float:
+    """Return the mean per-pixel absolute difference between two frames.
+
+    Both arrays must have the same shape; dtype uint8 is assumed. The
+    result is in [0, 255].
+    """
+    return float(np.abs(curr.astype(np.int16) - prev.astype(np.int16)).mean())
+
+
+def compute_fps_effective(frames_count: int, duration_s: float) -> float:
+    """Return real fps achieved by the recorder, rounded to two decimals.
+
+    Returns 0.0 when the session is too short to measure (fewer than two
+    frames, or non-positive duration).
+    """
+    if duration_s <= 0 or frames_count < 2:
+        return 0.0
+    return round(frames_count / duration_s, 2)
+
+
+def _downscale_frame(path: Path) -> np.ndarray:
+    """Load a JPEG, resize to _THUMB_SIZE via bilinear, return (H, W, 3) uint8."""
+    with Image.open(path) as img:
+        rgb = img.convert("RGB").resize(_THUMB_SIZE, Image.Resampling.BILINEAR)
+        return np.asarray(rgb, dtype=np.uint8)
+
+
+def _compute_scores(frames: list[FrameInfo]) -> list[float]:
+    """Return the N-1 motion scores between consecutive frames in ``frames``.
+
+    Frames are loaded lazily, downscaled, and discarded as the window rolls —
+    peak memory is bounded to two thumbnails regardless of session length.
+    Chunking is logical only (no cross-chunk boundary effects) because we
+    keep a running ``prev_thumb`` reference.
+
+    A frame that fails to load (missing file, truncated JPEG, permission
+    error) is skipped with a stderr warning: both the pair leading into it
+    and the pair leading out of it are dropped, and the running previous
+    thumbnail is cleared so the next valid frame starts a fresh window.
+    """
+    scores: list[float] = []
+    prev_thumb: np.ndarray | None = None
+    for chunk_start in range(0, len(frames), _CHUNK_SIZE):
+        chunk = frames[chunk_start : chunk_start + _CHUNK_SIZE]
+        for f in chunk:
+            try:
+                curr_thumb = _downscale_frame(Path(f["path"]))
+            except Exception as exc:
+                print(
+                    f"[claude-eyes] activity: skipping unreadable frame "
+                    f"{f['path']}: {exc}",
+                    file=sys.stderr,
+                )
+                prev_thumb = None
+                continue
+            if prev_thumb is not None:
+                scores.append(score_frame_motion(prev_thumb, curr_thumb))
+            prev_thumb = curr_thumb
+    return scores
+
+
+def _adaptive_threshold(scores: list[float]) -> float:
+    """Threshold = ``percentile(scores, 25) + 3 x max(MAD, 0.5)``.
+
+    The 0.5 floor on MAD prevents zero-threshold drift on scenes where
+    every frame pair produces an identical score (threshold would otherwise
+    be equal to the baseline, meaning every score would trigger "active").
+    """
+    arr = np.array(scores)
+    baseline = float(np.percentile(arr, 25))
+    mad = float(np.median(np.abs(arr - np.median(arr))))
+    return baseline + 3 * max(mad, 0.5)
+
+
+def detect_active_range(
+    session_dir: Path,
+    *,
+    include_frame_indices: set[int] | None = None,
+) -> tuple[tuple[int, int] | None, float]:
+    """Identify the leading-and-trailing-trimmed index range of motion.
+
+    Returns ``(range_or_None, score_mean)`` — the range is an inclusive
+    ``(first_frame_idx, last_frame_idx)`` pair computed from the motion
+    scores, widened by one on the right so both frames of the last active
+    transition are included. ``score_mean`` is the mean of all scores,
+    useful as a diagnostic field in the response even when no range was
+    detected.
+
+    If fewer than two frames are available (either because the session is
+    empty, has a single frame, or the ``include_frame_indices`` filter is
+    too restrictive), returns ``(None, 0.0)``.
+
+    The returned indices are **positions within the filtered frame list**
+    — when ``include_frame_indices`` is used, indices refer to the
+    filtered subset in ascending order, not to the original frame indices
+    on disk. Callers are expected to map back if needed.
+    """
+    frames = list_frames(session_dir)
+    if include_frame_indices is not None:
+        frames = [f for f in frames if f["index"] in include_frame_indices]
+    if len(frames) < 2:
+        return None, 0.0
+
+    scores = _compute_scores(frames)
+    if not scores:
+        return None, 0.0
+
+    score_mean = float(np.mean(scores))
+    threshold = _adaptive_threshold(scores)
+    arr = np.array(scores)
+    active = arr > threshold
+    if not active.any():
+        return None, score_mean
+
+    first = int(np.argmax(active))
+    last = len(active) - 1 - int(np.argmax(active[::-1]))
+    return (first, min(last + 1, len(frames) - 1)), score_mean

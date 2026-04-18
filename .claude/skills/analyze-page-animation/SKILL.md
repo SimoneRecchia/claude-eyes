@@ -267,6 +267,18 @@ For a tight Chrome animation the recording is often shorter than a bucket (≤ 1
 
 If the default `avg` preview doesn't surface the animation clearly (common for subtle colour transitions on a light background), call `compose_timeline_preview(session_id, mode="max")` and re-scan with the new previews.
 
+## Active range (Spec 5)
+
+`stop_recording` attaches `active_range: [first_idx, last_idx] | null`, `fps_effective: float`, and `activity_score_mean: float`.
+
+**Usage in this skill:**
+
+1. Chrome animations are often very tight (1-2 s) and bracketed by long idle padding (Claude-in-Chrome JS roundtrip + transitionend wait). `active_range` typically identifies the ~30 frames around the animation out of ~400. Filter `frame_paths` to that range before scanning.
+2. If `active_range` is null, the animation didn't produce enough per-pixel delta to exceed the adaptive threshold (very subtle colour shifts on a light background, for example). Fall back to `frame_paths` and consider `compose_timeline_preview(session_id, mode="max")` to amplify trails.
+3. `fps_effective < 0.8 × fps_nominal` in this skill almost always means the `region` was too wide (browser viewport instead of a tight element bbox). Recompute Step 0 with a tighter bbox and retry.
+
+**Optional: `trim_session`.** Useful when running many animation captures in a row — frees disk without losing the analysis value.
+
 ## Common mistakes to avoid
 
 - **Using this skill for a single-state screenshot.** Use Claude-in-Chrome's screenshot tool for that.
