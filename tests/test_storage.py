@@ -165,3 +165,19 @@ def test_frames_in_time_range_inclusive_bounds(tmp_path: Path) -> None:
 
 def test_frames_in_time_range_missing_dir(tmp_path: Path) -> None:
     assert frames_in_time_range(tmp_path / "nope", 0, 10_000) == []
+
+
+def test_cleanup_session_dir_also_removes_previews(tmp_path: Path) -> None:
+    sess = tmp_path / "with_previews"
+    _touch_frame(sess, 0, 100)
+    _touch_frame(sess, 1, 500)
+    preview_dir = sess / "previews"
+    preview_dir.mkdir()
+    (preview_dir / "preview_avg_000_0000000000.jpg").write_bytes(b"not really a jpeg")
+    (preview_dir / "preview_avg_001_0000001000.jpg").write_bytes(b"not really a jpeg")
+
+    freed = cleanup_session_dir(sess)
+
+    assert freed > 0
+    assert not sess.exists()
+    assert not preview_dir.exists()
