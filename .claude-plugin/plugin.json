@@ -17,7 +17,7 @@
     "animation-analysis"
   ],
   "skills": "./.claude/skills/",
-  "agents": "./.claude/agents/",
+  "agents": ["./.claude/agents/frame-analyzer.md"],
   "hooks": "./.claude/hooks/hooks.json",
   "mcpServers": "./.claude-plugin/mcp.json"
 }
