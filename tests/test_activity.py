@@ -96,6 +96,25 @@ def test_compute_scores_returns_n_minus_one(tmp_path: Path) -> None:
     assert all(s < 1.0 for s in scores)
 
 
+def test_compute_scores_skips_corrupted_frame_without_aborting(tmp_path: Path) -> None:
+    """One unreadable frame must not abort the whole run — adjacent valid
+    frames continue to produce scores."""
+    sess = tmp_path / "corrupt"
+    for i in range(5):
+        save_frame(sess, i, i * 100, _solid_img((100, 100, 100)))
+
+    # Corrupt the middle frame by truncating it to non-JPEG bytes.
+    frames = list_frames(sess)
+    Path(frames[2]["path"]).write_bytes(b"not a jpeg")
+
+    scores = _compute_scores(frames)
+
+    # With 5 frames and the middle one unreadable, we expect at most 2 pairs
+    # of valid consecutive scores (0-1 and 3-4); the corrupted frame breaks
+    # the running window. Must be strictly less than N-1=4.
+    assert 0 < len(scores) < 4
+
+
 def test_compute_scores_separates_motion_from_static(tmp_path: Path) -> None:
     sess = tmp_path / "mix"
     static_img = _solid_img((100, 100, 100))

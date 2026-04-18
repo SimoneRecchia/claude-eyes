@@ -248,7 +248,11 @@ def trim_session(session_id: str) -> dict[str, Any]:
         return {"error": f"unknown session {session_id}"}
 
     session_dir = Path(session.frames_dir)
-    active_range, _ = detect_active_range(session_dir)
+    try:
+        active_range, _ = detect_active_range(session_dir)
+    except Exception as exc:
+        print(f"[claude-eyes] activity detection failed: {exc}", file=sys.stderr)
+        return {"error": f"activity detection failed: {exc}"}
     if active_range is None:
         return {"error": "no active range detected; nothing to trim"}
 
@@ -417,6 +421,19 @@ def query_buffer(
             print(f"[claude-eyes] activity detection failed: {exc}", file=sys.stderr)
             active_range, score_mean = None, 0.0
 
+        # detect_active_range returns positions within the filtered all_frames
+        # list. Translate to absolute frame indices so the range lives in the
+        # same coordinate system as preview.frame_range (which uses the
+        # absolute index baked into frame filenames).
+        if active_range is not None and all_frames:
+            first_pos, last_pos = active_range
+            active_range_abs: list[int] | None = [
+                all_frames[first_pos]["index"],
+                all_frames[last_pos]["index"],
+            ]
+        else:
+            active_range_abs = None
+
         effective_range_s = max(0.001, (now_ms - oldest) / 1000)
         fps_effective = compute_fps_effective(len(all_frames), effective_range_s)
 
@@ -440,7 +457,7 @@ def query_buffer(
                 ],
             },
             "fps_effective": fps_effective,
-            "active_range": list(active_range) if active_range is not None else None,
+            "active_range": active_range_abs,
             "activity_score_mean": round(score_mean, 3),
         }
         if clamped:
