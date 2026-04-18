@@ -4,18 +4,44 @@ build-backend = "hatchling.build"
 
 [project]
 name = "claude-eyes"
-version = "0.1.0"
+version = "0.5.0"
 description = "MCP server that gives Claude visual awareness of what happens on screen over time"
 readme = "README.md"
 requires-python = ">=3.13"
 authors = [{ name = "Simone Recchia" }]
 license = { text = "MIT" }
+keywords = [
+  "mcp",
+  "claude",
+  "screen-recording",
+  "computer-use",
+  "visual-analysis",
+  "animation-analysis",
+  "anthropic",
+]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Multimedia :: Graphics :: Capture :: Screen Capture",
+  "Topic :: Software Development :: Libraries :: Python Modules",
+  "Typing :: Typed",
+]
 dependencies = [
   "mcp>=1.0",
   "mss>=9.0",
   "Pillow>=10.0",
   "numpy>=1.26",
 ]
+
+[project.urls]
+Homepage = "https://github.com/SimoneRecchia/claudeEyes"
+Repository = "https://github.com/SimoneRecchia/claudeEyes"
+Issues = "https://github.com/SimoneRecchia/claudeEyes/issues"
+"Source code" = "https://github.com/SimoneRecchia/claudeEyes"
 
 [project.optional-dependencies]
 dev = [
