@@ -31,12 +31,20 @@ def _capture_loop(
     monitor_index: int,
     frames_counter: list[int],
     started_monotonic: float,
+    region_dpr: float = 1.0,
 ) -> None:
     interval = 1.0 / fps
     next_tick = started_monotonic
+    dpr = max(0.1, min(4.0, region_dpr))  # defensive clamp
+
     with mss.mss() as sct:
         if region is not None:
             x, y, w, h = region
+            if dpr != 1.0:
+                x = round(x * dpr)
+                y = round(y * dpr)
+                w = max(1, round(w * dpr))
+                h = max(1, round(h * dpr))
             target = {"left": x, "top": y, "width": w, "height": h}
         else:
             # monitors[0] is the full virtual screen across all displays
@@ -71,6 +79,7 @@ def start_recorder(
     resolution_scale: float,
     region: tuple[int, int, int, int] | None,
     monitor_index: int,
+    region_dpr: float = 1.0,
 ) -> RecorderHandle:
     session_dir.mkdir(parents=True, exist_ok=True)
     stop_event = threading.Event()
@@ -78,16 +87,17 @@ def start_recorder(
     started = time.monotonic()
     thread = threading.Thread(
         target=_capture_loop,
-        kwargs=dict(
-            stop_event=stop_event,
-            session_dir=session_dir,
-            fps=fps,
-            resolution_scale=resolution_scale,
-            region=region,
-            monitor_index=monitor_index,
-            frames_counter=counter,
-            started_monotonic=started,
-        ),
+        kwargs={
+            "stop_event": stop_event,
+            "session_dir": session_dir,
+            "fps": fps,
+            "resolution_scale": resolution_scale,
+            "region": region,
+            "monitor_index": monitor_index,
+            "frames_counter": counter,
+            "started_monotonic": started,
+            "region_dpr": region_dpr,
+        },
         daemon=True,
         name=f"claude-eyes-recorder-{session_dir.name}",
     )

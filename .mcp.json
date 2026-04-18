@@ -2,7 +2,7 @@
   "mcpServers": {
     "claude_eyes": {
       "type": "stdio",
-      "command": "${CLAUDE_PROJECT_DIR}/.venv/Scripts/python.exe",
+      "command": ".venv/Scripts/python.exe",
       "args": ["-m", "claude_eyes.server"],
       "env": {
         "CLAUDE_EYES_MONITOR": "${CLAUDE_EYES_MONITOR:-0}",

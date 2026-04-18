@@ -1,6 +1,6 @@
 ---
 name: analyze-screen
-description: Use when the user asks to understand visual behavior that unfolds over time — animations, UI transitions, loading states, interactions, or any screen activity that a single screenshot cannot capture. Triggers include phrases like "analyze what happens when…", "is the animation smooth", "cosa succede quando clicco", "analizza l'animazione".
+description: Use when the user asks to understand visual behavior that unfolds over time — animations, UI transitions, loading states, interactions, or any screen activity that a single screenshot cannot capture. Triggers include phrases like "analyze what happens when…", "is the animation smooth", "cosa succede quando clicco", "analizza l'animazione". For Chrome pages accessed via Claude-in-Chrome, prefer `analyze-page-animation` which handles DOM selectors and timing-perfect triggering.
 ---
 
 # analyze-screen
