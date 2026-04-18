@@ -41,7 +41,7 @@ Orchestrates a query against the continuous rolling buffer: pick a time range, s
 
    b. **Drill pass.** For each chosen bucket, include only the raw frames from `frames` whose `timestamp_ms` falls inside that bucket's `[ts_start_ms, ts_end_ms]`. Dispatch `frame-analyzer` with that narrower list and the original question. Answer from the second report.
 
-   For "when did I do X" questions, consider calling `compose_timeline_preview(session_id="<continuous session id you know>", mode="motion")` first — the motion heatmap makes active buckets obvious. (Note: `compose_timeline_preview` currently does not address the continuous buffer directly; if you need this, rerun `query_buffer` which already uses `avg`/`bucket_s=1.0`.)
+   For "when did I do X" questions, the default `avg` preview from `query_buffer` is usually enough. `compose_timeline_preview` (with `mode="motion"` or different `bucket_s`) currently does **not** address the continuous buffer — it only targets on-demand sessions. If the default preview doesn't surface the moment, rerun `query_buffer` with a narrower `time_range_s` to get tighter bucket coverage.
 
 5. **Synthesize** the subagent's report into a direct answer. Reference specific moments by their age ("~45 s ago you…") rather than file indices.
 
