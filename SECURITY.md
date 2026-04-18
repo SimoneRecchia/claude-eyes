@@ -1,11 +1,11 @@
 # Security Policy
 
-claudeEyes records your screen on demand. That makes its security posture
+claude-eyes records your screen on demand. That makes its security posture
 matter more than for most MCP servers. This document spells out what the
 tool does with that data, what it does **not** do, and how to report
 issues.
 
-## What claudeEyes does with captured frames
+## What claude-eyes does with captured frames
 
 - **Frames are written to local disk only.** Default location is
   `sessions/` under the repository working directory, configurable via
@@ -30,13 +30,13 @@ issues.
 
 ## Threat model
 
-| Threat | How claudeEyes handles it |
+| Threat | How claude-eyes handles it |
 |---|---|
 | Malicious MCP client instructs Claude to record without user consent | Tool calls are visible in the Claude Code transcript and `start_continuous_buffer` fires a user-facing reminder hook. No tool starts recording without the agent calling it, and the agent is instructed (via `CLAUDE.md`) never to record pre-emptively. |
 | Attacker reads old session frames from disk | Frames live under user-owned filesystem permissions. Use OS-level access controls. `cleanup_session` + the `SessionEnd` hook limit the window in which stale frames exist. |
 | Prompt-injection payload in a captured frame ("ignore previous instructions…") | The subagent is a vision model analysing images; the main agent's system prompt and `CLAUDE.md` include instruction-injection defenses. Still, users should avoid recording screens that contain obviously hostile content. |
 | Resource exhaustion (disk) from a recording that never stops | `SAFETY_CAP_SECONDS` (30 min) hard-stops on-demand recordings. The continuous buffer enforces both an age cap (`retention_s`) and a disk cap (`disk_cap_mb`). |
-| Third party on the same machine reads frames mid-recording | Out of scope — claudeEyes assumes a single-user local environment. Do not run it on a shared host. |
+| Third party on the same machine reads frames mid-recording | Out of scope — claude-eyes assumes a single-user local environment. Do not run it on a shared host. |
 
 ## What is explicitly out of scope
 
@@ -46,7 +46,7 @@ issues.
 - Multi-user / shared-host deployments.
 - Hardening against a compromised Python environment or a modified MCP
   client — if an attacker can already run code as your user, they don't
-  need claudeEyes to see your screen.
+  need claude-eyes to see your screen.
 
 ## Reporting a vulnerability
 
@@ -56,7 +56,7 @@ Instead, email the maintainer directly — use the email visible on the
 
 - A description of the issue and why you believe it's a security concern.
 - Steps to reproduce (ideally a minimal PoC).
-- The claudeEyes version (git SHA) you tested against.
+- The claude-eyes version (git SHA) you tested against.
 - Your preferred disclosure timeline, if any.
 
 You'll get an acknowledgement within a few days. If the issue is

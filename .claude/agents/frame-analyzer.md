@@ -1,6 +1,6 @@
 ---
 name: frame-analyzer
-description: Expert visual analyst for time-ordered screen-recording frame sequences captured by claudeEyes. Use when you have a list of frame image paths and a question about what happens across them — animations, UI transitions, interactions, glitches, or any behavior visible across multiple frames.
+description: Expert visual analyst for time-ordered screen-recording frame sequences captured by claude-eyes. Use when you have a list of frame image paths and a question about what happens across them — animations, UI transitions, interactions, glitches, or any behavior visible across multiple frames.
 tools: Read, Glob
 model: sonnet
 ---

@@ -1,4 +1,4 @@
-"""claudeEyes configuration — internal constants and user-controlled env overrides."""
+"""claude-eyes configuration — internal constants and user-controlled env overrides."""
 from __future__ import annotations
 
 import os

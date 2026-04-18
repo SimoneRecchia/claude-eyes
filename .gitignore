@@ -25,15 +25,12 @@ htmlcov/
 .ruff_cache/
 coverage.xml
 
-# claudeEyes runtime
+# claude-eyes runtime
 sessions/
 .claude/logs/
 
 # IDE — personal workspace files
-.idea/workspace.xml
-.idea/tasks.xml
-.idea/usage.statistics.xml
-.idea/shelf/
+.idea/
 
 # OS
 .DS_Store

@@ -1,6 +1,6 @@
-# claudeEyes — project guidance
+# claude-eyes — project guidance
 
-claudeEyes is an MCP server that gives you **visual awareness of what happens on screen over time**. You can record the screen at a chosen frame rate, then dispatch the `frame-analyzer` subagent to analyze the captured sequence.
+claude-eyes is an MCP server that gives you **visual awareness of what happens on screen over time**. You can record the screen at a chosen frame rate, then dispatch the `frame-analyzer` subagent to analyze the captured sequence.
 
 Use this capability when a single screenshot is not enough — when the information you need unfolds across time.
 
@@ -89,7 +89,7 @@ The `analyze-screen` skill orchestrates this end-to-end. Follow it:
 
 ## Continuous mode (rolling buffer)
 
-claudeEyes also supports a **continuous rolling buffer**: a low-fps background capture that keeps the last N minutes of screen activity on disk, for "what did I just do" style questions. It is separate from on-demand recording and coexists with it.
+claude-eyes also supports a **continuous rolling buffer**: a low-fps background capture that keeps the last N minutes of screen activity on disk, for "what did I just do" style questions. It is separate from on-demand recording and coexists with it.
 
 ### Hard rules
 
@@ -112,13 +112,13 @@ Defaults are chosen to be cheap on disk (~200 MB for 5 min at 2 fps / scale 0.75
 - Tool errors are structured (`{"error": "..."}`) — never raise. Handle them by telling the user what to do next.
 - `query_buffer` may return a `warning` field when the requested range exceeds actual buffer age; relay that honestly.
 
-## Using claudeEyes with Claude-in-Chrome
+## Using claude-eyes with Claude-in-Chrome
 
-When you are working on a Chrome page via the `mcp__Claude_in_Chrome__*` tools and the user asks about visual behaviour that unfolds over time (animations, transitions, reveal-on-scroll, hover effects, media playback), use the **`analyze-page-animation` skill**. It coordinates Claude-in-Chrome (DOM, input, navigation) with claudeEyes (video capture) and guarantees timing-perfect start/stop around the triggering action.
+When you are working on a Chrome page via the `mcp__Claude_in_Chrome__*` tools and the user asks about visual behaviour that unfolds over time (animations, transitions, reveal-on-scroll, hover effects, media playback), use the **`analyze-page-animation` skill**. It coordinates Claude-in-Chrome (DOM, input, navigation) with claude-eyes (video capture) and guarantees timing-perfect start/stop around the triggering action.
 
 ### Hard rules
 
-- **Never use Claude-in-Chrome's `computer` screenshot tool for time-based behaviour.** It captures a single frame. claudeEyes captures a real video.
+- **Never use Claude-in-Chrome's `computer` screenshot tool for time-based behaviour.** It captures a single frame. claude-eyes captures a real video.
 - **Convert CSS pixels to physical pixels** before calling `start_recording`. Chrome's `getBoundingClientRect()` returns CSS pixels; on a 150% / Retina display the physical region is different. Either do the math in JS (recommended, see the skill's Step 0) or pass `region_dpr=window.devicePixelRatio` to `start_recording`.
 - **Scroll the target into view before starting the recorder.** Off-screen regions grab empty/irrelevant pixels.
 - **Keep using `review-recent-activity` for rolling-buffer queries**, even on Chrome pages — the continuous buffer is not tab-scoped.
