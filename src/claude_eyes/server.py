@@ -9,6 +9,7 @@ from typing import Any
 
 from mcp.server.fastmcp import FastMCP
 
+from .compose import compose_bucketed_preview
 from .config import (
     CONTINUOUS_SESSION_DIR_NAME,
     DEFAULT_CONTINUOUS_FPS,
@@ -112,12 +113,35 @@ def stop_recording(session_id: str) -> dict[str, Any]:
     _registry.update(session)
 
     frames = list_frames_on_disk(Path(session.frames_dir))
+
+    try:
+        bucket_items = compose_bucketed_preview(
+            Path(session.frames_dir), bucket_s=1.0, mode="avg"
+        )
+    except Exception as exc:
+        print(f"[claude-eyes] preview composition failed: {exc}", file=sys.stderr)
+        bucket_items = []
+
     return {
         "session_id": session_id,
         "frames_count": frames_count,
         "duration_s": duration_s,
         "frames_dir": session.frames_dir,
         "frame_paths": [f["path"] for f in frames],
+        "previews": {
+            "mode": "avg",
+            "bucket_s": 1.0,
+            "items": [
+                {
+                    "bucket_index": b.bucket_index,
+                    "preview_path": b.preview_path,
+                    "frame_range": list(b.frame_range),
+                    "ts_start_ms": b.ts_start_ms,
+                    "ts_end_ms": b.ts_end_ms,
+                }
+                for b in bucket_items
+            ],
+        },
     }
 
 

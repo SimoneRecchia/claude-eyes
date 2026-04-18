@@ -260,6 +260,30 @@ def test_continuous_and_on_demand_coexist(patched_server, tmp_path: Path) -> Non
     patched_server.cleanup_session(sid)
 
 
+def test_stop_recording_attaches_previews(patched_server, tmp_path: Path) -> None:
+    start = patched_server.start_recording(fps=10, resolution_scale=1.0, region=None)
+    sid = start["session_id"]
+    time.sleep(1.2)
+    result = patched_server.stop_recording(sid)
+
+    assert "previews" in result
+    assert result["previews"]["mode"] == "avg"
+    assert result["previews"]["bucket_s"] == 1.0
+    items = result["previews"]["items"]
+    assert len(items) >= 1
+    first = items[0]
+    assert set(first.keys()) >= {
+        "bucket_index",
+        "preview_path",
+        "frame_range",
+        "ts_start_ms",
+        "ts_end_ms",
+    }
+    assert Path(first["preview_path"]).exists()
+
+    patched_server.cleanup_session(sid)
+
+
 def test_start_recording_forwards_region_dpr(patched_server, tmp_path: Path) -> None:
     """Region passed to the tool is scaled by region_dpr before hitting mss."""
     from tests.test_recorder import _FakeMSS
