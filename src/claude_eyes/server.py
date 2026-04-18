@@ -312,11 +312,39 @@ def query_buffer(
             }
             for f in sampled
         ]
+
+        try:
+            bucket_items = compose_bucketed_preview(
+                handle.session_dir, bucket_s=1.0, mode="avg"
+            )
+        except Exception as exc:
+            print(f"[claude-eyes] preview composition failed: {exc}", file=sys.stderr)
+            bucket_items = []
+
+        filtered_items = [
+            b for b in bucket_items
+            if b.ts_end_ms >= oldest and b.ts_start_ms <= now_ms
+        ]
+
         result: dict[str, Any] = {
             "frames": enriched,
             "total_in_range": len(all_frames),
             "oldest_frame_age_s": enriched[0]["age_s"] if enriched else 0.0,
             "newest_frame_age_s": enriched[-1]["age_s"] if enriched else 0.0,
+            "previews": {
+                "mode": "avg",
+                "bucket_s": 1.0,
+                "items": [
+                    {
+                        "bucket_index": b.bucket_index,
+                        "preview_path": b.preview_path,
+                        "frame_range": list(b.frame_range),
+                        "ts_start_ms": b.ts_start_ms,
+                        "ts_end_ms": b.ts_end_ms,
+                    }
+                    for b in filtered_items
+                ],
+            },
         }
         if clamped:
             effective_s = max(0, (now_ms - buffer_oldest) // 1000)
