@@ -239,7 +239,7 @@ Choose based on **expected animation duration** (align with the `CLAUDE.md` deci
 
 | Expected animation duration | `fps` | Category |
 |---|---|---|
-| < 1 s (snap, flash, click feedback) | 25–30 | motion/timing |
+| < 1 s (snap, flash, click feedback) | 25–30 | timing |
 | 1–3 s (normal CSS transition) | 20–25 | timing |
 | 3–8 s (fluid UI, multi-step) | 15–20 | timing |
 | 8+ s (page reveal, long form) | 10–12 | timing |
