@@ -1,5 +1,12 @@
 # claudeEyes
 
+[![CI](https://github.com/SimoneRecchia/claudeEyes/actions/workflows/ci.yml/badge.svg)](https://github.com/SimoneRecchia/claudeEyes/actions/workflows/ci.yml)
+[![Python 3.13+](https://img.shields.io/badge/python-3.13%2B-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Checked with mypy](https://img.shields.io/badge/mypy-strict-1f5082.svg)](https://mypy-lang.org/)
+[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
+[![MCP](https://img.shields.io/badge/MCP-compatible-6f42c1.svg)](https://modelcontextprotocol.io/)
+
 MCP server that gives Claude **visual awareness of what happens on screen over time**.
 
 A single screenshot answers "what is on screen right now". claudeEyes answers
