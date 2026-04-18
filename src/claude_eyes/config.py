@@ -8,7 +8,7 @@ from pathlib import Path
 # Internal constants — not exposed as tool parameters.
 JPEG_QUALITY: int = 85
 SAFETY_CAP_SECONDS: int = 30 * 60  # anti-runaway recording cap
-DEFAULT_FPS: int = 3
+DEFAULT_FPS: int = 10
 DEFAULT_RESOLUTION_SCALE: float = 1.0
 
 # Continuous mode defaults
