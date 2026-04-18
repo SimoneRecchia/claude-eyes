@@ -22,7 +22,7 @@ from claude_eyes.config import (
 
 
 def test_internal_constants_have_expected_defaults() -> None:
-    assert DEFAULT_FPS == 3
+    assert DEFAULT_FPS == 10
     assert DEFAULT_RESOLUTION_SCALE == 1.0
     assert JPEG_QUALITY == 85
     assert SAFETY_CAP_SECONDS == 30 * 60
