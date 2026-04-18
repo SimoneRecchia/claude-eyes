@@ -26,15 +26,21 @@ Orchestrates screen recording and visual analysis via the `claude_eyes` MCP serv
 
 Follow these steps in order. Skipping cleanup at the end is a bug.
 
-1. **Pick parameters.** Read the heuristics in `CLAUDE.md` and choose `fps`, `resolution_scale`, and `region` for the task. Start conservative — you can redo with higher values if the subagent reports insufficient detail.
+1. **Categorize the question.** Follow the decision tree in `CLAUDE.md` — motion/gesture/trail, timing/transition, existence/layout, or long-recall. Motion and timing categories require the drill pass and higher fps.
 
-2. **Start recording.** Call `mcp__claude_eyes__start_recording` with your chosen parameters. Save the returned `session_id` — you will need it for every subsequent call.
+2. **Pick parameters.** Read the heuristics in `CLAUDE.md` and choose `fps`, `resolution_scale`, and `region` for the task. Start with the defaults from the decision tree; only deviate if you have specific reason.
 
-3. **Cue the user (if needed).** If the recording captures an action the user has to perform ("click the button", "scroll down"), tell them now, in one short sentence, and wait.
+3. **Start recording.** Call `mcp__claude_eyes__start_recording` with your chosen parameters. Save the returned `session_id` — you will need it for every subsequent call.
 
-4. **Stop recording.** Call `mcp__claude_eyes__stop_recording(session_id)`. It returns the list of frame paths and metadata.
+4. **Cue the user (if needed).** If the recording captures an action the user has to perform ("click the button", "scroll down"), tell them now, in one short sentence, and wait.
 
-5. **Scan then drill** — optimise token spend on the subagent:
+5. **Stop recording.** Call `mcp__claude_eyes__stop_recording(session_id)`. It returns the list of frame paths and metadata.
+
+6. **Scan then drill** — optimise token spend on the subagent.
+
+   **The drill pass is MANDATORY for motion/gesture/trail and timing/transition categories.** The preview image compresses time and cannot reveal order, smoothness, or shape evolution — answering from it is a bug. Even when the preview "seems to show" the answer, dispatch the drill pass on raw frames.
+
+   For existence/layout and long-recall categories, the drill pass is recommended but optional if the preview is unambiguous.
 
    **If `frames_count < 30`**: pass `frame_paths` directly to the subagent, as before.
 
@@ -46,9 +52,11 @@ Follow these steps in order. Skipping cleanup at the end is a bug.
 
    If the first dispatch returns no interesting buckets, tell the user nothing notable happened in the recording. Do not dispatch a drill pass on an empty result.
 
-6. **Cleanup.** Call `mcp__claude_eyes__cleanup_session(session_id)`. **Always.** Even if the analysis failed, even if the user interrupted, even if the subagent returned nothing useful.
+7. **Cleanup.** Call `mcp__claude_eyes__cleanup_session(session_id)`. **Always.** Even if the analysis failed, even if the user interrupted, even if the subagent returned nothing useful.
 
-7. **Answer the user.** Synthesize the subagent's report into a direct, concise answer. Do not paste the whole report — extract what matters for the question.
+8. **Retry once if the answer is uncertain.** If the subagent's response hedges ("I think", "probably", "hard to tell"), is under ~20 words for a qualitative question, or conflicts with a hint the user gave, retry with different parameters using the tactic priority in `CLAUDE.md § Retry protocol`. Cleanup the first session before starting the second. If the second attempt also fails, tell the user what you tried and ask for a specific hint.
+
+9. **Answer the user.** Synthesize the subagent's report into a direct, concise answer. Do not paste the whole report — extract what matters for the question.
 
 ## Parameter selection quick reference
 
@@ -56,12 +64,13 @@ See `CLAUDE.md` for the full heuristics. Summary:
 
 | Situation | `fps` | `resolution_scale` | `region` |
 |---|---|---|---|
-| Slow UI transition | 3 | 1.0 | tight bbox |
-| Normal animation | 5–8 | 1.0 | tight bbox |
-| Fluid/fast animation | 10–15 | 1.0 | tight bbox |
-| Layout-only check | 2–3 | 0.5 | full / large area |
-| Movement tracking | 5 | 0.25 | full |
-| Micro-stutter debug | 20–30 | 1.0 | tight bbox |
+| Mouse gesture / cursor path | 25–30 | 0.75 | full or single monitor |
+| OS / Chrome animation | 20–25 | 1.0 | tight bbox |
+| Normal UI animation | 15–20 | 1.0 | tight bbox |
+| UI walkthrough | 10 | 0.75 | tight bbox |
+| Default | 10 | 0.75 | full |
+| Layout-only check | 5 | 0.5 | full |
+| Long recall | 2–3 | 0.75 | full |
 
 ### Preview modes (passed via `compose_timeline_preview` if the default doesn't help)
 
@@ -97,7 +106,9 @@ Context: Captured at 10 fps during a user click on #submit.
 - **Doing the visual analysis in the main agent.** Main agent = orchestration. Visual reasoning belongs in the subagent.
 - **Starting a recording before knowing the question.** Without a clear question you cannot pick parameters, and the subagent has nothing to answer.
 - **Skipping the scan pass when `frames_count >= 30`.** Sending hundreds of raw frames to the subagent burns tokens for no reason. The scan pass is your coarse map.
-- **Asking the scan subagent for a final answer.** Its job is only to identify interesting bucket indices — the drill pass answers the question.
+- **Treating the preview as the answer.** The preview is always a scan tool. For motion/timing/trail questions, the drill pass is NOT OPTIONAL — even when the preview looks like it shows the answer.
+- **Retrying with identical parameters after a failure.** If the first pass failed, change something meaningful (res_scale, region, preview mode) before retrying. Running the same capture again won't help.
+- **Raising fps when `fps_effective < 50%`.** Under I/O bottleneck, raising fps trades disk thrash for zero extra frames. Lower `resolution_scale` or narrow `region` first.
 
 ## Active range (Spec 5)
 
