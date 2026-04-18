@@ -9,6 +9,7 @@ from typing import Any, Literal
 
 from mcp.server.fastmcp import FastMCP
 
+from .activity import compute_fps_effective, detect_active_range
 from .compose import compose_bucketed_preview
 from .config import (
     CONTINUOUS_SESSION_DIR_NAME,
@@ -122,6 +123,14 @@ def stop_recording(session_id: str) -> dict[str, Any]:
         print(f"[claude-eyes] preview composition failed: {exc}", file=sys.stderr)
         bucket_items = []
 
+    try:
+        active_range, score_mean = detect_active_range(Path(session.frames_dir))
+    except Exception as exc:
+        print(f"[claude-eyes] activity detection failed: {exc}", file=sys.stderr)
+        active_range, score_mean = None, 0.0
+
+    fps_effective = compute_fps_effective(frames_count, duration_s)
+
     return {
         "session_id": session_id,
         "frames_count": frames_count,
@@ -142,6 +151,9 @@ def stop_recording(session_id: str) -> dict[str, Any]:
                 for b in bucket_items
             ],
         },
+        "fps_effective": fps_effective,
+        "active_range": list(active_range) if active_range is not None else None,
+        "activity_score_mean": round(score_mean, 3),
     }
 
 
