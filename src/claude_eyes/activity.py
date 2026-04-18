@@ -19,7 +19,7 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 
-from .storage import FrameInfo
+from .storage import FrameInfo, list_frames
 
 _THUMB_SIZE = (128, 72)            # (W, H) for PIL; 16:9; ~9216 pixels
 _CHUNK_SIZE = 500                  # frames per batch (memory cap)
@@ -83,3 +83,48 @@ def _adaptive_threshold(scores: list[float]) -> float:
     baseline = float(np.percentile(arr, 25))
     mad = float(np.median(np.abs(arr - np.median(arr))))
     return baseline + 3 * max(mad, 0.5)
+
+
+def detect_active_range(
+    session_dir: Path,
+    *,
+    include_frame_indices: set[int] | None = None,
+) -> tuple[tuple[int, int] | None, float]:
+    """Identify the leading-and-trailing-trimmed index range of motion.
+
+    Returns ``(range_or_None, score_mean)`` — the range is an inclusive
+    ``(first_frame_idx, last_frame_idx)`` pair computed from the motion
+    scores, widened by one on the right so both frames of the last active
+    transition are included. ``score_mean`` is the mean of all scores,
+    useful as a diagnostic field in the response even when no range was
+    detected.
+
+    If fewer than two frames are available (either because the session is
+    empty, has a single frame, or the ``include_frame_indices`` filter is
+    too restrictive), returns ``(None, 0.0)``.
+
+    The returned indices are **positions within the filtered frame list**
+    — when ``include_frame_indices`` is used, indices refer to the
+    filtered subset in ascending order, not to the original frame indices
+    on disk. Callers are expected to map back if needed.
+    """
+    frames = list_frames(session_dir)
+    if include_frame_indices is not None:
+        frames = [f for f in frames if f["index"] in include_frame_indices]
+    if len(frames) < 2:
+        return None, 0.0
+
+    scores = _compute_scores(frames)
+    if not scores:
+        return None, 0.0
+
+    score_mean = float(np.mean(scores))
+    threshold = _adaptive_threshold(scores)
+    arr = np.array(scores)
+    active = arr > threshold
+    if not active.any():
+        return None, score_mean
+
+    first = int(np.argmax(active))
+    last = len(active) - 1 - int(np.argmax(active[::-1]))
+    return (first, min(last + 1, len(frames) - 1)), score_mean

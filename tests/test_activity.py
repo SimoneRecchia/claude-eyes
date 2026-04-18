@@ -11,6 +11,7 @@ from claude_eyes.activity import (
     _compute_scores,
     _downscale_frame,
     compute_fps_effective,
+    detect_active_range,
     score_frame_motion,
 )
 from claude_eyes.storage import list_frames, save_frame
@@ -117,3 +118,64 @@ def test_compute_scores_separates_motion_from_static(tmp_path: Path) -> None:
     assert scores[1] < 1.0
     assert scores[4] < 1.0
     assert scores[5] < 1.0
+
+
+def test_detect_active_range_all_static_returns_none(tmp_path: Path) -> None:
+    sess = tmp_path / "static"
+    for i in range(5):
+        save_frame(sess, i, i * 100, _solid_img((100, 100, 100)))
+    active, score_mean = detect_active_range(sess)
+    assert active is None
+    assert score_mean == 0.0 or score_mean < 1.0
+
+
+def test_detect_active_range_leading_trailing_idle_trimmed(tmp_path: Path) -> None:
+    sess = tmp_path / "bracketed"
+    static_img = _solid_img((100, 100, 100))
+    moving_img = _solid_img((200, 50, 50))
+    for i in range(5):
+        save_frame(sess, i, i * 100, static_img)
+    for i in range(5, 8):
+        save_frame(sess, i, i * 100, moving_img)
+    for i in range(8, 13):
+        save_frame(sess, i, i * 100, static_img)
+
+    active, _ = detect_active_range(sess)
+
+    assert active is not None
+    first, last = active
+    assert first == 4
+    assert last == 8
+
+
+def test_detect_active_range_too_few_frames_returns_none(tmp_path: Path) -> None:
+    sess = tmp_path / "single"
+    save_frame(sess, 0, 0, _solid_img((100, 100, 100)))
+    active, _ = detect_active_range(sess)
+    assert active is None
+
+
+def test_detect_active_range_missing_session_dir_returns_none(tmp_path: Path) -> None:
+    active, score_mean = detect_active_range(tmp_path / "nope")
+    assert active is None
+    assert score_mean == 0.0
+
+
+def test_detect_active_range_include_indices_filter(tmp_path: Path) -> None:
+    """When given include_frame_indices, only those frames contribute."""
+    sess = tmp_path / "filtered"
+    static_img = _solid_img((100, 100, 100))
+    moving_img = _solid_img((200, 50, 50))
+    for i in range(5):
+        save_frame(sess, i, i * 100, static_img)
+    for i in range(5, 8):
+        save_frame(sess, i, i * 100, moving_img)
+    for i in range(8, 10):
+        save_frame(sess, i, i * 100, static_img)
+
+    active, _ = detect_active_range(sess, include_frame_indices={3, 4, 5, 6})
+
+    assert active is not None
+    first, last = active
+    assert first == 1
+    assert last == 2
