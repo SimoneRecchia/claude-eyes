@@ -1,0 +1,23 @@
+{
+  "name": "claudeEyes",
+  "version": "0.5.0",
+  "description": "Visual awareness over time — screen recording + vision subagent for Claude Code.",
+  "author": {
+    "name": "Simone Recchia",
+    "url": "https://github.com/SimoneRecchia"
+  },
+  "homepage": "https://github.com/SimoneRecchia/claudeEyes",
+  "repository": "https://github.com/SimoneRecchia/claudeEyes",
+  "license": "MIT",
+  "keywords": [
+    "mcp",
+    "claude",
+    "screen-recording",
+    "visual-analysis",
+    "animation-analysis"
+  ],
+  "skills": "./.claude/skills/",
+  "agents": "./.claude/agents/",
+  "hooks": "./.claude/hooks/hooks.json",
+  "mcpServers": "./.claude-plugin/mcp.json"
+}
